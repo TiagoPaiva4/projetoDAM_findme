@@ -48,4 +48,8 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
+    // Google Maps
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    // GPS e Localização (vamos precisar a seguir)
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 }
