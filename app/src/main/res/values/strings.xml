@@ -1,3 +1,19 @@
 <resources>
-    <string name="app_name">projetoDAM_findme</string>
+    <string name="app_name">FindMe</string>
+
+    <!-- Adiciona estas linhas que estão a faltar: -->
+    <string name="hint_email">Email</string>
+    <string name="hint_password">Password</string>
+    <string name="btn_login">Login</string>
+    <string name="txt_register">Não tens conta? Regista-te</string>
+    <string name="hint_name">Nome</string>
+    <string name="btn_register">Registar</string>
+
+    <!-- NOVOS: Main Activity -->
+    <string name="btn_logout">Sair</string>
+    <string name="txt_welcome">Bem-vindo ao FindMe!</string>
+    <string name="nav_people">Pessoas</string>
+    <string name="nav_groups">Grupos</string>
+    <string name="nav_circles">Círculos</string>
+    <string name="nav_me">Eu</string>
 </resources>
