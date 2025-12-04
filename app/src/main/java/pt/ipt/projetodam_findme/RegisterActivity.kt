@@ -41,7 +41,7 @@ class RegisterActivity : AppCompatActivity() {
             return
         }
 
-        val url = "http://10.0.2.2/findmyandroid/backend/register.php"
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/register.php"
 
         val jsonBody = JSONObject().apply {
             put("name", name)

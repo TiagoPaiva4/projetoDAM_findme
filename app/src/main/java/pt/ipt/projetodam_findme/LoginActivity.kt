@@ -47,7 +47,7 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
-        val url = "http://192.168.56.1/findmyandroid/backend/login.php"
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/login.php"
 
         val jsonBody = JSONObject().apply {
             put("email", email)
