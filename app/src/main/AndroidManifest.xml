@@ -27,8 +27,6 @@
             </intent-filter>
         </activity>
 
-        <!-- !!! FALTAVAM ESTAS DUAS !!! -->
-
         <!-- Atividade de Login -->
         <activity
             android:name=".LoginActivity"
@@ -37,6 +35,14 @@
         <!-- Atividade de Registo -->
         <activity
             android:name=".RegisterActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MapsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ProfileActivity"
             android:exported="false" />
 
         <meta-data
