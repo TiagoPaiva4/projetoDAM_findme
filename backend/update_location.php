@@ -1,5 +1,5 @@
 <?php
-// update_location.php
+// Teste de deploy forçado
 require_once 'db.php';
 
 // Verificar se o pedido é POST
