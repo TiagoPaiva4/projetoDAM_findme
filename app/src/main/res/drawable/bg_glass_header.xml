@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Cinzento Médio com transparência (aprox. 70%) -->
+    <!-- Mudei para #B3505050 para ser mais claro e translúcido -->
+    <solid android:color="#B3505050"/>
+
+    <corners
+        android:topLeftRadius="20dp"
+        android:topRightRadius="20dp"
+        android:bottomLeftRadius="0dp"
+        android:bottomRightRadius="0dp"/>
+
+    <!-- Linha de brilho no topo -->
+    <stroke android:width="1dp" android:color="#40FFFFFF"/>
+</shape>
