@@ -47,6 +47,7 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
+        // URL do teu servidor Azure
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/login.php"
 
         val jsonBody = JSONObject().apply {
@@ -59,48 +60,61 @@ class LoginActivity : AppCompatActivity() {
             url,
             jsonBody,
             { response ->
-                // --- SUCESSO ---
-                val errorMessage = response.optString("error")
+                // --- SUCESSO NA COMUNICAÇÃO ---
 
-                if (errorMessage.isNotEmpty()) {
-                    Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+                // O teu PHP envia "error" se falhar, ou "token" e "user" se acertar
+                if (response.has("error")) {
+                    val msgErro = response.getString("error")
+                    Toast.makeText(this, msgErro, Toast.LENGTH_LONG).show()
                 } else {
-                    // GUARDAR A SESSÃO
-                    val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
-                    sharedPreferences.edit {
-                        putBoolean("logado", true)
-                        putString("email", email)
+                    // LOGIN CORRETO!
+                    try {
+                        // 1. Ler os dados que vêm do PHP
+                        val token = response.optString("token")
+                        val userObj = response.getJSONObject("user")
+                        val userId = userObj.getInt("id")
+                        val userName = userObj.getString("name")
+
+                        // 2. Guardar TUDO nas SharedPreferences
+                        val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
+                        sharedPreferences.edit {
+                            putBoolean("logado", true)
+                            putInt("id_user", userId)       // <--- Importante para o Mapa!
+                            putString("nome_user", userName)
+                            putString("email_user", email)
+                            putString("token", token)
+                        }
+
+                        Toast.makeText(this, "Bem-vindo, $userName!", Toast.LENGTH_SHORT).show()
+
+                        // 3. Mudar para o ecrã principal
+                        startActivity(Intent(this, MainActivity::class.java))
+                        finish()
+
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "Erro ao processar dados: ${e.message}", Toast.LENGTH_LONG).show()
+                        e.printStackTrace()
                     }
-
-                    Toast.makeText(this, "Login efetuado com sucesso!", Toast.LENGTH_SHORT).show()
-
-                    startActivity(Intent(this, MainActivity::class.java))
-                    finish()
                 }
             },
             { error ->
-                // --- ERRO NA LIGAÇÃO (CORRIGIDO) ---
+                // --- ERRO NA LIGAÇÃO ---
                 val response = error.networkResponse
 
                 if (response != null && response.data != null) {
-                    // O servidor respondeu (ex: 404, 500)
                     val errorString = String(response.data, Charset.forName("UTF-8"))
                     val statusCode = response.statusCode
-
                     Log.e("LOGIN_ERRO", "Status: $statusCode | Body: $errorString")
 
-                    // Tenta mostrar mensagem legível
                     try {
                         val jsonErro = JSONObject(errorString)
                         val msg = jsonErro.optString("error", "Erro no servidor")
                         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
                     } catch (e: Exception) {
-                        // Se não for JSON (ex: erro HTML do XAMPP)
-                        Toast.makeText(this, "Erro $statusCode. Veja o Logcat.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "Erro $statusCode. Tente novamente.", Toast.LENGTH_LONG).show()
                     }
                 } else {
-                    // Erro de rede (sem internet ou servidor desligado)
-                    Toast.makeText(this, "Erro de conexão: ${error.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Erro de conexão. Verifique a internet.", Toast.LENGTH_LONG).show()
                     error.printStackTrace()
                 }
             }
