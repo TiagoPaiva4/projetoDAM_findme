@@ -14,6 +14,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import com.android.volley.Request
+import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.gms.location.*
@@ -21,7 +22,10 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.MarkerOptions
 import org.json.JSONObject
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -32,8 +36,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // Variáveis de controlo
     private lateinit var userId: String
-    private var lastSentLocation: Location? = null // Guarda a última posição enviada para a BD
-    private val MIN_DISTANCE_METERS = 30.0f    // Distância mínima (em metros) para atualizar
+    private var lastSentLocation: Location? = null
+    private val MIN_DISTANCE_METERS = 30.0f
+
+    // Controlo de Zoom inicial
+    private var isFirstLocation = true
+
+    // Lista para guardar os marcadores dos amigos (ID do user -> Marcador no mapa)
+    private val markersMap = HashMap<Int, Marker>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,7 +95,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         findViewById<Button>(R.id.btnPessoas).setOnClickListener {
-            Toast.makeText(this, "A atualizar mapa...", Toast.LENGTH_SHORT).show()
+            // Forçar atualização manual
+            Toast.makeText(this, "A atualizar amigos...", Toast.LENGTH_SHORT).show()
+            buscarAmigos()
         }
         findViewById<Button>(R.id.btnGrupos).setOnClickListener {
             Toast.makeText(this, "Grupos (Em breve)", Toast.LENGTH_SHORT).show()
@@ -121,18 +133,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             startLocationUpdates()
             if (::mMap.isInitialized) enableBlueDot()
         } else {
-            Toast.makeText(this, "Permissão de localização necessária para a app funcionar.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Permissão de localização necessária.", Toast.LENGTH_LONG).show()
         }
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
-        mMap.mapType = GoogleMap.MAP_TYPE_NORMAL // Podes mudar para HYBRID se preferires satélite
+        // Mapa Híbrido (Satélite + Ruas)
+        mMap.mapType = GoogleMap.MAP_TYPE_HYBRID
         mMap.uiSettings.isZoomControlsEnabled = true
 
-        // Move a câmara inicial para Portugal (centro aproximado)
         val portugal = LatLng(39.55, -7.85)
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(portugal, 6f))
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(portugal, 1f))
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
             == PackageManager.PERMISSION_GRANTED
@@ -150,13 +162,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // --- Lógica de GPS Otimizada ---
+    // --- Lógica de GPS ---
 
     private fun startLocationUpdates() {
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).apply {
-            // Tenta obter localização a cada 5s no mínimo
             setMinUpdateIntervalMillis(5000)
-            // Dica ao Android: só avisa se mudar pelo menos 10 metros (nível de hardware)
             setMinUpdateDistanceMeters(10f)
         }.build()
 
@@ -164,21 +174,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { currentLocation ->
 
+                    // 1. Zoom Automático na primeira vez que encontra o GPS
+                    if (isFirstLocation) {
+                        isFirstLocation = false
+                        val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
+                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 18f))
+                    }
+
+                    // 2. Verificar se devemos enviar atualização
                     var shouldSend = false
 
                     if (lastSentLocation == null) {
-                        // Primeira vez que obtemos localização: Enviar sempre
                         shouldSend = true
                     } else {
-                        // Calcular distância em metros
                         val distance = lastSentLocation!!.distanceTo(currentLocation)
-
                         if (distance >= MIN_DISTANCE_METERS) {
                             shouldSend = true
                             Log.d("GPS_DEBUG", "Moveu-se ${distance.toInt()}m. A enviar...")
-                        } else {
-                            // Se estiver parado, não faz nada
-                            Log.d("GPS_DEBUG", "Parado (deslocamento: ${distance.toInt()}m). Ignorar.")
                         }
                     }
 
@@ -186,7 +198,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         lastSentLocation = currentLocation
                         enviarLocalizacao(userId, currentLocation.latitude, currentLocation.longitude)
 
-
+                        // Sempre que envio a minha localização, pergunto onde estão os amigos
+                        buscarAmigos()
                     }
                 }
             }
@@ -203,7 +216,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // --- Envio para o Azure ---
+    // --- API REQUESTS ---
 
     private fun enviarLocalizacao(userId: String, latitude: Double, longitude: Double) {
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/update_location.php"
@@ -212,21 +225,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val postRequest = object : StringRequest(
             Request.Method.POST, url,
             { response ->
-                try {
-                    val json = JSONObject(response)
-                    if (json.has("success")) {
-                        Log.i("API_AZURE", "Sucesso: ${json.getString("success")}")
-                    } else if (json.has("error")) {
-                        Log.e("API_AZURE", "Erro servidor: ${json.getString("error")}")
-                    }
-                } catch (e: Exception) {
-                    Log.e("API_AZURE", "Erro JSON: ${e.message}")
-                }
+                // Log silencioso para não incomodar
+                Log.i("API_AZURE", "Loc enviada: $response")
             },
             { error ->
-                Log.e("API_AZURE", "Erro Volley: ${error.message}")
-                // Opcional: Toast apenas se for crítico. Evita spam de Toasts se a net falhar.
-                // Toast.makeText(this, "Falha ao enviar localização", Toast.LENGTH_SHORT).show()
+                Log.e("API_AZURE", "Erro envio: ${error.message}")
             }
         ) {
             override fun getParams(): MutableMap<String, String> {
@@ -237,7 +240,58 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 )
             }
         }
-
         queue.add(postRequest)
+    }
+
+    private fun buscarAmigos() {
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_users_locations.php?user_id=$userId"
+        val queue = Volley.newRequestQueue(this)
+
+        val request = JsonObjectRequest(
+            Request.Method.GET, url, null,
+            { response ->
+                try {
+                    // O JSON vem no formato { "users": [ ... ] }
+                    val usersArray = response.getJSONArray("users")
+
+                    for (i in 0 until usersArray.length()) {
+                        val userObj = usersArray.getJSONObject(i)
+
+                        val friendId = userObj.getInt("id_user")
+                        val name = userObj.getString("name")
+                        val lat = userObj.getDouble("latitude")
+                        val lon = userObj.getDouble("longitude")
+
+                        val friendPos = LatLng(lat, lon)
+
+                        // Se já temos um marcador para este amigo, atualizamos a posição (animação suave)
+                        if (markersMap.containsKey(friendId)) {
+                            markersMap[friendId]?.position = friendPos
+                        } else {
+                            // Se é novo, criamos o marcador
+                            val markerOptions = MarkerOptions()
+                                .position(friendPos)
+                                .title(name)
+                                // Ícone Azul Claro para distinguir
+                                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+
+                            val marker = mMap.addMarker(markerOptions)
+                            if (marker != null) {
+                                markersMap[friendId] = marker
+                            }
+                        }
+                    }
+                    Log.i("API_FRIENDS", "Amigos atualizados: ${usersArray.length()}")
+
+                } catch (e: Exception) {
+                    Log.e("API_FRIENDS", "Erro JSON: ${e.message}")
+                }
+            },
+            { error ->
+                Log.e("API_FRIENDS", "Erro Volley: ${error.message}")
+            }
+        )
+
+        queue.add(request)
     }
 }
