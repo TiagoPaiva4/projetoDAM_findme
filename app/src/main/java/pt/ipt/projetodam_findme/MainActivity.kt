@@ -4,6 +4,11 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.location.Location
 import android.os.Bundle
 import android.os.Looper
@@ -32,12 +37,12 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomsheet.BottomSheetBehavior
-import kotlin.math.abs
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -79,6 +84,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
         setupButtons()
         checkLocationPermission()
     }
@@ -111,7 +117,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             insets
         }
 
-        // 3. ENCAIXAR A LISTA ATRÁS DA NAVBAR
+        // 3. ENCAIXAR A LISTA ATRÁS DA NAVBAR (Overlap)
         navBar.doOnLayout {
             val navbarHeight = it.height
             val navMarginBottom = (it.layoutParams as CoordinatorLayout.LayoutParams).bottomMargin
@@ -128,7 +134,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             bottomSheet.setPadding(0, 0, 0, overlap + dpToPx(10))
         }
 
-        // 4. ESTADO INICIAL: TOTALMENTE ESCONDIDO
+        // 4. ESTADO INICIAL
         sheetBehavior.peekHeight = 0
         sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         sheetBehavior.isHideable = true
@@ -144,7 +150,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun onSlide(bottomSheet: View, slideOffset: Float) {}
         })
 
-        // 5. GESTOS MANUAIS NA NAVBAR
+        // 5. GESTOS MANUAIS NA NAVBAR (Para puxar a lista)
         val touchListener = object : View.OnTouchListener {
             var startY = 0f
             var startTime = 0L
@@ -193,7 +199,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         navBar.setOnTouchListener(touchListener)
     }
 
-    // --- CORREÇÃO AQUI: APENAS UMA FUNÇÃO TOGGLESHEET ---
     private fun toggleSheet() {
         if (sheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN ||
             sheetBehavior.state == BottomSheetBehavior.STATE_COLLAPSED) {
@@ -212,17 +217,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun setupButtons() {
         recyclerFriends = findViewById(R.id.recyclerFriends)
         recyclerFriends.layoutManager = LinearLayoutManager(this)
+
         adapter = FriendsAdapter(friendsList) { friend ->
             val pos = LatLng(friend.latitude, friend.longitude)
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
+            // Opcional: sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         }
         recyclerFriends.adapter = adapter
 
+        // Botão Adicionar Amigo
         findViewById<ImageButton>(R.id.btnAddFriend).setOnClickListener {
-            Toast.makeText(this, "Adicionar Amigo", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, AddFriendActivity::class.java))
         }
 
-        // Botão Pessoas
+        // --- NAVBAR ---
         findViewById<LinearLayout>(R.id.btnPessoas).setOnClickListener {
             toggleSheet()
         }
@@ -238,11 +246,38 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         findViewById<LinearLayout>(R.id.btnEu).setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
-        findViewById<ImageButton>(R.id.btnAddFriend).setOnClickListener {
-            // Abre o ecrã de adicionar amigo
-            startActivity(Intent(this, AddFriendActivity::class.java))
-        }
     }
+
+    // --- FUNÇÃO PARA DESENHAR CÍRCULO COM LETRA ---
+    private fun criarIconeCircular(nome: String): BitmapDescriptor {
+        val width = 120
+        val height = 120
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint()
+
+        // 1. Círculo de Fundo (Cinzento Escuro)
+        paint.color = Color.parseColor("#444444")
+        paint.style = Paint.Style.FILL
+        paint.isAntiAlias = true
+        canvas.drawCircle(width / 2f, height / 2f, width / 2f, paint)
+
+        // 2. Letra Inicial
+        paint.color = Color.WHITE
+        paint.textSize = 60f
+        paint.textAlign = Paint.Align.CENTER
+        paint.typeface = Typeface.DEFAULT_BOLD
+
+        val xPos = width / 2f
+        val yPos = (height / 2f) - ((paint.descent() + paint.ascent()) / 2)
+        val letra = if (nome.isNotEmpty()) nome.first().toString().uppercase() else "?"
+
+        canvas.drawText(letra, xPos, yPos, paint)
+
+        return BitmapDescriptorFactory.fromBitmap(bitmap)
+    }
+
+    // --- MAPA E LOCALIZAÇÃO ---
 
     private fun checkLocationPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -264,6 +299,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mMap = googleMap
         mMap.mapType = GoogleMap.MAP_TYPE_HYBRID
         mMap.uiSettings.isZoomControlsEnabled = true
+        // Padding para o logo do Google não ficar debaixo da navbar
         mMap.setPadding(0, 0, 0, dpToPx(100))
 
         val portugal = LatLng(39.55, -7.85)
@@ -294,7 +330,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     if (isFirstLocation) {
                         isFirstLocation = false
                         val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
-                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 18f))
+                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 6f))
                         buscarAmigos()
                     }
                     var shouldSend = false
@@ -333,6 +369,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             try {
                 val usersArray = response.getJSONArray("users")
                 friendsList.clear()
+
                 for (i in 0 until usersArray.length()) {
                     val userObj = usersArray.getJSONObject(i)
                     val friendId = userObj.getInt("id_user")
@@ -341,13 +378,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     val lon = userObj.getDouble("longitude")
                     val lastUpd = userObj.optString("last_update", "Desconhecido")
                     val friendPos = LatLng(lat, lon)
+
+                    // --- ATUALIZAR MARCADOR COM ÍCONE PERSONALIZADO ---
                     if (markersMap.containsKey(friendId)) {
                         markersMap[friendId]?.position = friendPos
+                        markersMap[friendId]?.setIcon(criarIconeCircular(name))
                     } else {
-                        val markerOptions = MarkerOptions().position(friendPos).title(name).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                        val markerOptions = MarkerOptions()
+                            .position(friendPos)
+                            .title(name)
+                            .icon(criarIconeCircular(name)) // <--- AQUI
+                            .anchor(0.5f, 0.5f)
+
                         val marker = mMap.addMarker(markerOptions)
                         if (marker != null) markersMap[friendId] = marker
                     }
+
+                    // Calcular Distância e Adicionar à Lista
                     val results = FloatArray(1)
                     Location.distanceBetween(lastSentLocation!!.latitude, lastSentLocation!!.longitude, lat, lon, results)
                     friendsList.add(Friend(friendId, name, lat, lon, results[0], lastUpd))
