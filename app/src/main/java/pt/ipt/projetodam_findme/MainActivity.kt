@@ -238,6 +238,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         findViewById<LinearLayout>(R.id.btnEu).setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
+        findViewById<ImageButton>(R.id.btnAddFriend).setOnClickListener {
+            // Abre o ecrã de adicionar amigo
+            startActivity(Intent(this, AddFriendActivity::class.java))
+        }
     }
 
     private fun checkLocationPermission() {
