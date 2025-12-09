@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="10dp"
+    android:background="#1C1C1E">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/txtReqName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Nome da Pessoa"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"/>
+
+        <TextView
+            android:id="@+id/txtReqEmail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="quer ver a tua localização"
+            android:textColor="#98989D"
+            android:textSize="12sp"/>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnAccept"
+        android:layout_width="80dp"
+        android:layout_height="40dp"
+        android:text="Aceitar"
+        android:textSize="12sp"
+        android:backgroundTint="#0A84FF"
+        android:textColor="#FFF"/>
+
+</LinearLayout>

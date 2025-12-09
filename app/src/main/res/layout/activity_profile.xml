@@ -1,55 +1,156 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/profile_layout"
+    android:id="@+id/profileCoordinator"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
-    tools:context=".ProfileActivity">
+    android:layout_height="match_parent">
 
-    <!-- Botão de SAIR -->
-    <Button
-        android:id="@+id/btnLogout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:backgroundTint="#D32F2F"
-        android:text="Sair"
-        android:textColor="@android:color/white"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- O MAPA (Focado em mim) -->
+    <!-- O MAPA -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/mapProfile"
         android:name="com.google.android.gms.maps.SupportMapFragment"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/bottomBar"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btnLogout" />
-
-    <!-- Barra de Navegação -->
-    <LinearLayout
-        android:id="@+id/bottomBar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#E0E0E0"
-        android:orientation="horizontal"
-        android:padding="4dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        android:layout_height="match_parent"/>
 
-        <Button android:id="@+id/btnPessoas" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Pessoas" />
-        <Button android:id="@+id/btnGrupos" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Grupos" />
-        <Button android:id="@+id/btnCirculos" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Círculos" />
-        <!-- Botão EU (Destacado ou desativado porque já estamos nele) -->
-        <Button android:id="@+id/btnEu" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="EU" android:textStyle="bold"/>
 
+    <!-- 1. PAINEL (ABA "EU") - Mesma estrutura da Main -->
+    <LinearLayout
+        android:id="@+id/bottomSheetProfile"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/bg_sheet_top"
+        android:elevation="10dp"
+        android:layout_marginHorizontal="10dp"
+        android:layout_marginBottom="10dp"
+        app:behavior_peekHeight="0dp"
+        app:behavior_hideable="true"
+        app:behavior_skipCollapsed="true"
+        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+
+        <!-- Título "Eu" -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="20dp"
+            android:paddingBottom="10dp">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Eu"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"/>
+        </LinearLayout>
+
+        <!-- CONTEÚDO DO PERFIL -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- Morada -->
+            <TextView
+                android:id="@+id/txtLocation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="A obter localização..."
+                android:textColor="#98989D"
+                android:textSize="14sp"
+                android:layout_marginBottom="30dp"/>
+
+            <!-- Título da Secção -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pedidos de Amizade"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp"/>
+
+            <!-- LISTA DE PEDIDOS -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerRequests"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"/>
+
+            <!-- Botão de SAIR -->
+            <Button
+                android:id="@+id/btnLogout"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:text="Terminar Sessão"
+                android:textColor="#FF3B30"
+                android:textStyle="bold"
+                android:backgroundTint="#2C2C2E"
+                app:cornerRadius="12dp"/>
+
+        </LinearLayout>
     </LinearLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- 2. NAVBAR (FLUTUANTE) -->
+    <LinearLayout
+        android:id="@+id/navBarProfile"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_gravity="bottom"
+        android:layout_margin="10dp"
+        android:background="@drawable/bg_rounded_card"
+        android:elevation="20dp">
+
+        <!-- A BARRINHA (PEGA) -->
+        <LinearLayout
+            android:id="@+id/dragHandleAreaProfile"
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
+            <View
+                android:layout_width="40dp"
+                android:layout_height="5dp"
+                android:background="#555555"
+                android:backgroundTint="#888888"/>
+        </LinearLayout>
+
+        <!-- Ícones -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingBottom="12dp"
+            android:baselineAligned="false">
+
+            <LinearLayout android:id="@+id/btnPessoas" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@android:drawable/ic_menu_myplaces" app:tint="#98989D"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pessoas" android:textSize="11sp" android:textColor="#98989D" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/btnGrupos" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@android:drawable/ic_menu_recent_history" app:tint="#98989D"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Dispositivos" android:textSize="11sp" android:textColor="#98989D" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/btnCirculos" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@android:drawable/ic_menu_search" app:tint="#98989D"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Objetos" android:textSize="11sp" android:textColor="#98989D" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <!-- Botão EU (Ativo/Azul) -->
+            <LinearLayout android:id="@+id/btnEu" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@android:drawable/ic_menu_info_details" app:tint="#0A84FF"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Eu" android:textSize="11sp" android:textColor="#0A84FF" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

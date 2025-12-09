@@ -1,19 +1,35 @@
 package pt.ipt.projetodam_findme
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.location.Location
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
-import android.widget.Button
+import android.view.MotionEvent
+import android.view.View
+import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnLayout
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.Request
+import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.gms.location.*
@@ -21,8 +37,12 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
-import org.json.JSONObject
+import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -30,25 +50,28 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val locationPermissionRequestCode = 1
 
-    // Variáveis de controlo
     private lateinit var userId: String
-    private var lastSentLocation: Location? = null // Guarda a última posição enviada para a BD
-    private val MIN_DISTANCE_METERS = 30.0f    // Distância mínima (em metros) para atualizar
+    private var lastSentLocation: Location? = null
+    private val MIN_DISTANCE_METERS = 30.0f
+    private var isFirstLocation = true
+
+    private lateinit var recyclerFriends: RecyclerView
+    private val friendsList = ArrayList<Friend>()
+    private lateinit var adapter: FriendsAdapter
+    private val markersMap = HashMap<Int, Marker>()
+
+    private lateinit var sheetBehavior: BottomSheetBehavior<LinearLayout>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Verificar sessão
         val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
         if (!sharedPreferences.getBoolean("logado", false)) {
             redirecionarLogin()
             return
         }
-
-        // 2. Obter o ID do utilizador corretamente
         val id = sharedPreferences.getInt("id_user", -1)
         if (id == -1) {
-            Toast.makeText(this, "Sessão inválida. Faça login novamente.", Toast.LENGTH_LONG).show()
             redirecionarLogin()
             return
         }
@@ -56,11 +79,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         setContentView(R.layout.activity_main)
 
-        // 3. Inicializar mapa
-        val mapFragment = supportFragmentManager
-            .findFragmentById(R.id.map) as SupportMapFragment
-        mapFragment.getMapAsync(this)
+        setupFloatingUI()
 
+        val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
+        mapFragment.getMapAsync(this)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         setupButtons()
@@ -72,172 +94,314 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         finish()
     }
 
-    private fun setupButtons() {
-        val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupFloatingUI() {
+        val navBar = findViewById<LinearLayout>(R.id.navBar)
+        val bottomSheet = findViewById<LinearLayout>(R.id.bottomSheet)
+        sheetBehavior = BottomSheetBehavior.from(bottomSheet)
 
-        findViewById<Button>(R.id.btnLogout).setOnClickListener {
-            sharedPreferences.edit { clear() }
-            redirecionarLogin()
+        // 1. LIMITAR ALTURA A 55%
+        val displayMetrics = resources.displayMetrics
+        val screenHeight = displayMetrics.heightPixels
+        val desiredHeight = (screenHeight * 0.55).toInt()
+        val params = bottomSheet.layoutParams
+        params.height = desiredHeight
+        bottomSheet.layoutParams = params
+
+        // 2. INSETS & POSICIONAMENTO DA NAVBAR
+        ViewCompat.setOnApplyWindowInsetsListener(navBar) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val paramsNav = view.layoutParams as CoordinatorLayout.LayoutParams
+            paramsNav.bottomMargin = bars.bottom + dpToPx(10)
+            view.layoutParams = paramsNav
+            insets
         }
 
-        findViewById<Button>(R.id.btnEu).setOnClickListener {
+        // 3. ENCAIXAR A LISTA ATRÁS DA NAVBAR (Overlap)
+        navBar.doOnLayout {
+            val navbarHeight = it.height
+            val navMarginBottom = (it.layoutParams as CoordinatorLayout.LayoutParams).bottomMargin
+            val totalNavHeight = navbarHeight + navMarginBottom
+
+            // Truque visual: Subtrair um pouco (20dp) para overlap
+            val overlap = dpToPx(20)
+
+            val sheetParams = bottomSheet.layoutParams as CoordinatorLayout.LayoutParams
+            sheetParams.bottomMargin = totalNavHeight - overlap
+            bottomSheet.layoutParams = sheetParams
+
+            // Padding interno para compensar
+            bottomSheet.setPadding(0, 0, 0, overlap + dpToPx(10))
+        }
+
+        // 4. ESTADO INICIAL
+        sheetBehavior.peekHeight = 0
+        sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        sheetBehavior.isHideable = true
+        sheetBehavior.skipCollapsed = true
+
+        // Callback para garantir estado
+        sheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
+            override fun onStateChanged(bottomSheet: View, newState: Int) {
+                if (newState == BottomSheetBehavior.STATE_COLLAPSED) {
+                    sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+                }
+            }
+            override fun onSlide(bottomSheet: View, slideOffset: Float) {}
+        })
+
+        // 5. GESTOS MANUAIS NA NAVBAR (Para puxar a lista)
+        val touchListener = object : View.OnTouchListener {
+            var startY = 0f
+            var startTime = 0L
+            var isDragging = false
+
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startY = event.rawY
+                        startTime = System.currentTimeMillis()
+                        isDragging = false
+                        return true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val diff = event.rawY - startY
+                        // Arrastar para CIMA -> Mostrar Lista
+                        if (diff < -40 && !isDragging) {
+                            if (sheetBehavior.state != BottomSheetBehavior.STATE_EXPANDED) {
+                                sheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+                                buscarAmigos()
+                            }
+                            isDragging = true
+                        }
+                        // Arrastar para BAIXO -> Esconder Lista
+                        else if (diff > 40 && !isDragging) {
+                            if (sheetBehavior.state == BottomSheetBehavior.STATE_EXPANDED) {
+                                sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+                            }
+                            isDragging = true
+                        }
+                        return true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (!isDragging && (System.currentTimeMillis() - startTime) < 200) {
+                            toggleSheet()
+                            v.performClick()
+                        }
+                        return true
+                    }
+                }
+                return false
+            }
+        }
+
+        findViewById<View>(R.id.dragHandleArea).setOnTouchListener(touchListener)
+        navBar.setOnTouchListener(touchListener)
+    }
+
+    private fun toggleSheet() {
+        if (sheetBehavior.state == BottomSheetBehavior.STATE_HIDDEN ||
+            sheetBehavior.state == BottomSheetBehavior.STATE_COLLAPSED) {
+            sheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+            buscarAmigos()
+        } else {
+            sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        }
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        val density = resources.displayMetrics.density
+        return (dp * density).toInt()
+    }
+
+    private fun setupButtons() {
+        recyclerFriends = findViewById(R.id.recyclerFriends)
+        recyclerFriends.layoutManager = LinearLayoutManager(this)
+
+        adapter = FriendsAdapter(friendsList) { friend ->
+            val pos = LatLng(friend.latitude, friend.longitude)
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
+            // Opcional: sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        }
+        recyclerFriends.adapter = adapter
+
+        // Botão Adicionar Amigo
+        findViewById<ImageButton>(R.id.btnAddFriend).setOnClickListener {
+            startActivity(Intent(this, AddFriendActivity::class.java))
+        }
+
+        // --- NAVBAR ---
+        findViewById<LinearLayout>(R.id.btnPessoas).setOnClickListener {
+            toggleSheet()
+        }
+
+        findViewById<LinearLayout>(R.id.btnGrupos).setOnClickListener {
+            Toast.makeText(this, "Dispositivos...", Toast.LENGTH_SHORT).show()
+            sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        }
+        findViewById<LinearLayout>(R.id.btnCirculos).setOnClickListener {
+            Toast.makeText(this, "Objetos...", Toast.LENGTH_SHORT).show()
+            sheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+        }
+        findViewById<LinearLayout>(R.id.btnEu).setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
-
-        findViewById<Button>(R.id.btnPessoas).setOnClickListener {
-            Toast.makeText(this, "A atualizar mapa...", Toast.LENGTH_SHORT).show()
-        }
-        findViewById<Button>(R.id.btnGrupos).setOnClickListener {
-            Toast.makeText(this, "Grupos (Em breve)", Toast.LENGTH_SHORT).show()
-        }
-        findViewById<Button>(R.id.btnCirculos).setOnClickListener {
-            Toast.makeText(this, "Círculos (Em breve)", Toast.LENGTH_SHORT).show()
-        }
     }
 
-    // --- Permissões e Mapa ---
+    // --- FUNÇÃO PARA DESENHAR CÍRCULO COM LETRA ---
+    private fun criarIconeCircular(nome: String): BitmapDescriptor {
+        val width = 120
+        val height = 120
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint()
+
+        // 1. Círculo de Fundo (Cinzento Escuro)
+        paint.color = Color.parseColor("#444444")
+        paint.style = Paint.Style.FILL
+        paint.isAntiAlias = true
+        canvas.drawCircle(width / 2f, height / 2f, width / 2f, paint)
+
+        // 2. Letra Inicial
+        paint.color = Color.WHITE
+        paint.textSize = 60f
+        paint.textAlign = Paint.Align.CENTER
+        paint.typeface = Typeface.DEFAULT_BOLD
+
+        val xPos = width / 2f
+        val yPos = (height / 2f) - ((paint.descent() + paint.ascent()) / 2)
+        val letra = if (nome.isNotEmpty()) nome.first().toString().uppercase() else "?"
+
+        canvas.drawText(letra, xPos, yPos, paint)
+
+        return BitmapDescriptorFactory.fromBitmap(bitmap)
+    }
+
+    // --- MAPA E LOCALIZAÇÃO ---
 
     private fun checkLocationPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
         } else {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                locationPermissionRequestCode
-            )
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), locationPermissionRequestCode)
         }
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<String>, grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == locationPermissionRequestCode &&
-            grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
-        ) {
+        if (requestCode == locationPermissionRequestCode && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
             if (::mMap.isInitialized) enableBlueDot()
-        } else {
-            Toast.makeText(this, "Permissão de localização necessária para a app funcionar.", Toast.LENGTH_LONG).show()
         }
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
-        mMap.mapType = GoogleMap.MAP_TYPE_NORMAL // Podes mudar para HYBRID se preferires satélite
+        mMap.mapType = GoogleMap.MAP_TYPE_HYBRID
         mMap.uiSettings.isZoomControlsEnabled = true
+        // Padding para o logo do Google não ficar debaixo da navbar
+        mMap.setPadding(0, 0, 0, dpToPx(100))
 
-        // Move a câmara inicial para Portugal (centro aproximado)
         val portugal = LatLng(39.55, -7.85)
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(portugal, 6f))
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             enableBlueDot()
         }
     }
 
     private fun enableBlueDot() {
-        if (::mMap.isInitialized &&
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
-            mMap.isMyLocationEnabled = true
-        }
+        try {
+            if (::mMap.isInitialized && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                mMap.isMyLocationEnabled = true
+            }
+        } catch (e: Exception) { e.printStackTrace() }
     }
-
-    // --- Lógica de GPS Otimizada ---
 
     private fun startLocationUpdates() {
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).apply {
-            // Tenta obter localização a cada 5s no mínimo
             setMinUpdateIntervalMillis(5000)
-            // Dica ao Android: só avisa se mudar pelo menos 10 metros (nível de hardware)
             setMinUpdateDistanceMeters(10f)
         }.build()
 
         val locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { currentLocation ->
-
-                    var shouldSend = false
-
-                    if (lastSentLocation == null) {
-                        // Primeira vez que obtemos localização: Enviar sempre
-                        shouldSend = true
-                    } else {
-                        // Calcular distância em metros
-                        val distance = lastSentLocation!!.distanceTo(currentLocation)
-
-                        if (distance >= MIN_DISTANCE_METERS) {
-                            shouldSend = true
-                            Log.d("GPS_DEBUG", "Moveu-se ${distance.toInt()}m. A enviar...")
-                        } else {
-                            // Se estiver parado, não faz nada
-                            Log.d("GPS_DEBUG", "Parado (deslocamento: ${distance.toInt()}m). Ignorar.")
-                        }
+                    if (isFirstLocation) {
+                        isFirstLocation = false
+                        val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
+                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 6f))
+                        buscarAmigos()
                     }
+                    var shouldSend = false
+                    if (lastSentLocation == null) shouldSend = true
+                    else if (lastSentLocation!!.distanceTo(currentLocation) >= MIN_DISTANCE_METERS) shouldSend = true
 
                     if (shouldSend) {
                         lastSentLocation = currentLocation
                         enviarLocalizacao(userId, currentLocation.latitude, currentLocation.longitude)
-
-
+                        buscarAmigos()
                     }
                 }
             }
         }
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
-            fusedLocationClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
-                Looper.getMainLooper()
-            )
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
         }
     }
-
-    // --- Envio para o Azure ---
 
     private fun enviarLocalizacao(userId: String, latitude: Double, longitude: Double) {
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/update_location.php"
         val queue = Volley.newRequestQueue(this)
-
-        val postRequest = object : StringRequest(
-            Request.Method.POST, url,
-            { response ->
-                try {
-                    val json = JSONObject(response)
-                    if (json.has("success")) {
-                        Log.i("API_AZURE", "Sucesso: ${json.getString("success")}")
-                    } else if (json.has("error")) {
-                        Log.e("API_AZURE", "Erro servidor: ${json.getString("error")}")
-                    }
-                } catch (e: Exception) {
-                    Log.e("API_AZURE", "Erro JSON: ${e.message}")
-                }
-            },
-            { error ->
-                Log.e("API_AZURE", "Erro Volley: ${error.message}")
-                // Opcional: Toast apenas se for crítico. Evita spam de Toasts se a net falhar.
-                // Toast.makeText(this, "Falha ao enviar localização", Toast.LENGTH_SHORT).show()
-            }
-        ) {
+        val postRequest = object : StringRequest(Request.Method.POST, url, {}, { error -> Log.e("API", "Erro envio: ${error.message}") }) {
             override fun getParams(): MutableMap<String, String> {
-                return mutableMapOf(
-                    "user_id" to userId,
-                    "latitude" to latitude.toString(),
-                    "longitude" to longitude.toString()
-                )
+                return mutableMapOf("user_id" to userId, "latitude" to latitude.toString(), "longitude" to longitude.toString())
             }
         }
-
         queue.add(postRequest)
+    }
+
+    private fun buscarAmigos() {
+        if (lastSentLocation == null) return
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_users_locations.php?user_id=$userId"
+        val queue = Volley.newRequestQueue(this)
+        val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
+            try {
+                val usersArray = response.getJSONArray("users")
+                friendsList.clear()
+
+                for (i in 0 until usersArray.length()) {
+                    val userObj = usersArray.getJSONObject(i)
+                    val friendId = userObj.getInt("id_user")
+                    val name = userObj.getString("name")
+                    val lat = userObj.getDouble("latitude")
+                    val lon = userObj.getDouble("longitude")
+                    val lastUpd = userObj.optString("last_update", "Desconhecido")
+                    val friendPos = LatLng(lat, lon)
+
+                    // --- ATUALIZAR MARCADOR COM ÍCONE PERSONALIZADO ---
+                    if (markersMap.containsKey(friendId)) {
+                        markersMap[friendId]?.position = friendPos
+                        markersMap[friendId]?.setIcon(criarIconeCircular(name))
+                    } else {
+                        val markerOptions = MarkerOptions()
+                            .position(friendPos)
+                            .title(name)
+                            .icon(criarIconeCircular(name)) // <--- AQUI
+                            .anchor(0.5f, 0.5f)
+
+                        val marker = mMap.addMarker(markerOptions)
+                        if (marker != null) markersMap[friendId] = marker
+                    }
+
+                    // Calcular Distância e Adicionar à Lista
+                    val results = FloatArray(1)
+                    Location.distanceBetween(lastSentLocation!!.latitude, lastSentLocation!!.longitude, lat, lon, results)
+                    friendsList.add(Friend(friendId, name, lat, lon, results[0], lastUpd))
+                }
+                adapter.notifyDataSetChanged()
+            } catch (e: Exception) { Log.e("API", "Erro JSON: ${e.message}") }
+        }, { error -> Log.e("API", "Erro Volley: ${error.message}") })
+        queue.add(request)
     }
 }
