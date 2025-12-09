@@ -1,10 +1,12 @@
 package pt.ipt.projetodam_findme
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.location.Geocoder
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -23,7 +25,7 @@ data class Friend(
     val latitude: Double,
     val longitude: Double,
     val distanceMeters: Float,
-    val lastUpdate: String // Vem do servidor como "2023-12-09 19:56:59"
+    val lastUpdate: String
 )
 
 class FriendsAdapter(
@@ -35,11 +37,10 @@ class FriendsAdapter(
         val imgAvatar: ImageView = view.findViewById(R.id.imgAvatar)
         val txtName: TextView = view.findViewById(R.id.txtName)
         val txtStatus: TextView = view.findViewById(R.id.txtStatus)
-        val txtDistance: TextView = view.findViewById(R.id.txtDistance) // Adicionei este ID no XML acima
+        val txtDistance: TextView = view.findViewById(R.id.txtDistance)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        // Certifica-te que o nome do layout aqui é o correto (item_person_modern ou item_friend)
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_person_modern, parent, false)
         return ViewHolder(view)
@@ -47,6 +48,7 @@ class FriendsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val friend = friends[position]
+        val context = holder.itemView.context // Necessário para o Geocoder
 
         // 1. Nome
         holder.txtName.text = friend.name
@@ -54,9 +56,16 @@ class FriendsAdapter(
         // 2. Avatar (Letra Inicial)
         holder.imgAvatar.setImageBitmap(desenharAvatar(friend.name))
 
-        // 3. Tempo Relativo ("Há 5 min")
+        // 3. Tempo e Cidade
         val tempoTexto = getTempoRelativo(friend.lastUpdate)
-        holder.txtStatus.text = tempoTexto
+        val cidade = obterCidade(context, friend.latitude, friend.longitude)
+
+        // Junta a cidade com o tempo: "Coimbra • Há 5 min"
+        if (cidade.isNotEmpty()) {
+            holder.txtStatus.text = "$cidade • $tempoTexto"
+        } else {
+            holder.txtStatus.text = tempoTexto
+        }
 
         // 4. Distância
         val distString = if (friend.distanceMeters >= 1000) {
@@ -72,10 +81,28 @@ class FriendsAdapter(
 
     override fun getItemCount() = friends.size
 
-    // --- FUNÇÃO PARA CALCULAR TEMPO ("Há X min") ---
+    // --- NOVA FUNÇÃO: OBTER NOME DA CIDADE ---
+    private fun obterCidade(context: Context, lat: Double, lon: Double): String {
+        return try {
+            val geocoder = Geocoder(context, Locale.getDefault())
+            // Pega 1 resultado
+            val addresses = geocoder.getFromLocation(lat, lon, 1)
+
+            if (!addresses.isNullOrEmpty()) {
+                // Tenta obter a localidade (Cidade), se não der, tenta o subAdminArea ou adminArea
+                val address = addresses[0]
+                address.locality ?: address.subAdminArea ?: address.adminArea ?: ""
+            } else {
+                ""
+            }
+        } catch (e: Exception) {
+            "" // Se der erro (sem net, etc), retorna vazio
+        }
+    }
+
+    // --- FUNÇÃO PARA CALCULAR TEMPO ---
     private fun getTempoRelativo(dataString: String): String {
         try {
-            // Formato que vem do MySQL/PHP
             val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
             val past = format.parse(dataString)
             val now = Date()
@@ -105,8 +132,8 @@ class FriendsAdapter(
         val canvas = Canvas(bitmap)
         val paint = Paint()
 
-        // 1. Fundo Circular (Azulão ou Cinzento)
-        paint.color = Color.parseColor("#444444") // Cinzento escuro
+        // 1. Fundo Circular
+        paint.color = Color.parseColor("#444444")
         paint.style = Paint.Style.FILL
         paint.isAntiAlias = true
         canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
