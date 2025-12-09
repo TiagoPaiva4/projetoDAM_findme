@@ -62,6 +62,7 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         sheetBehavior = BottomSheetBehavior.from(bottomSheet)
 
         // 1. Insets (Margens do sistema)
+
         ViewCompat.setOnApplyWindowInsetsListener(navBar) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val paramsNav = view.layoutParams as CoordinatorLayout.LayoutParams
@@ -69,8 +70,8 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
             view.layoutParams = paramsNav
             insets
         }
-
         // 2. Encaixar a Lista Atrás da Navbar (Lógica de Overlap)
+        /*
         navBar.doOnLayout {
             val navbarHeight = it.height
             val navMarginBottom = (it.layoutParams as CoordinatorLayout.LayoutParams).bottomMargin
@@ -85,6 +86,14 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
 
             // Padding interno para o conteúdo não ficar escondido
             bottomSheet.setPadding(0, 0, 0, overlap)
+        }
+         */
+        navBar.doOnLayout {
+            val sheetParams = bottomSheet.layoutParams as
+                    CoordinatorLayout.LayoutParams
+            // Set a fixed 10dp bottom margin for the bottom sheet
+            sheetParams.bottomMargin = dpToPx(20)
+            bottomSheet.layoutParams = sheetParams
         }
 
         // 3. Estado Inicial: ESCONDIDO (Igual à Main)
