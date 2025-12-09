@@ -39,7 +39,7 @@
             android:id="@+id/txtName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            tools:text="João Emidio"
+            tools:text="Tiago Paiva"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold"/>

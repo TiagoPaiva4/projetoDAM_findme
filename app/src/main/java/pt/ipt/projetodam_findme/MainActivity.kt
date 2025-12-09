@@ -47,28 +47,25 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val locationPermissionRequestCode = 1
 
-    // Variáveis de controlo
     private lateinit var userId: String
     private var lastSentLocation: Location? = null
     private val MIN_DISTANCE_METERS = 30.0f
     private var isFirstLocation = true
 
-    // Listas e Adaptadores
     private lateinit var recyclerFriends: RecyclerView
     private val friendsList = ArrayList<Friend>()
     private lateinit var adapter: FriendsAdapter
     private val markersMap = HashMap<Int, Marker>()
 
-    // Comportamento do Painel
     private lateinit var sheetBehavior: BottomSheetBehavior<LinearLayout>
 
-    // UI Elements (Abas)
+    // UI Elements - ABAS
     private lateinit var tabPessoas: LinearLayout
     private lateinit var tabGrupos: LinearLayout
     private lateinit var tabCirculos: LinearLayout
     private lateinit var tabEu: LinearLayout
 
-    // UI Elements (Indicadores - Traço Branco)
+    // UI Elements - INDICADORES
     private lateinit var indicatorPessoas: View
     private lateinit var indicatorGrupos: View
     private lateinit var indicatorCirculos: View
@@ -77,7 +74,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Verificar Sessão
         val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
         if (!sharedPreferences.getBoolean("logado", false)) {
             redirecionarLogin()
@@ -92,17 +88,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         setContentView(R.layout.activity_main)
 
-        // 2. Inicializar Serviços
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        // 3. Configurar a Interface
         setupUI()
 
-        // 4. Carregar Mapa
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        // 5. Permissões
         checkLocationPermission()
     }
 
@@ -115,11 +107,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val bottomSheet = findViewById<LinearLayout>(R.id.bottomSheet)
         sheetBehavior = BottomSheetBehavior.from(bottomSheet)
 
-        // Peek Height: Suficiente para ver o cabeçalho e um pouco da lista
         sheetBehavior.peekHeight = dpToPx(240)
         sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
 
-        // --- LISTA ---
         recyclerFriends = findViewById(R.id.recyclerFriends)
         recyclerFriends.layoutManager = LinearLayoutManager(this)
         adapter = FriendsAdapter(friendsList) { friend ->
@@ -129,28 +119,25 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         recyclerFriends.adapter = adapter
 
-        // --- BOTÃO ADICIONAR ---
         findViewById<ImageView>(R.id.btnAddFriend).setOnClickListener {
             startActivity(Intent(this, AddFriendActivity::class.java))
         }
 
-        // --- INICIALIZAR ABAS ---
+        // Inicializar Views
         tabPessoas = findViewById(R.id.tabPessoas)
         tabGrupos = findViewById(R.id.tabGrupos)
         tabCirculos = findViewById(R.id.tabCirculos)
         tabEu = findViewById(R.id.tabEu)
 
-        // --- INICIALIZAR INDICADORES (TRAÇOS) ---
         indicatorPessoas = findViewById(R.id.indicatorPessoas)
         indicatorGrupos = findViewById(R.id.indicatorGrupos)
         indicatorCirculos = findViewById(R.id.indicatorCirculos)
         indicatorEu = findViewById(R.id.indicatorEu)
 
-        // Definir estado inicial (Pessoas Ativo)
+        // Estado Inicial
         atualizarEstiloAbas(tabPessoas)
 
-        // --- LISTENERS DAS ABAS ---
-
+        // Listeners
         tabPessoas.setOnClickListener {
             atualizarEstiloAbas(tabPessoas)
             sheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
@@ -166,7 +153,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             atualizarEstiloAbas(tabGrupos)
             Toast.makeText(this, "Grupos (Em breve)", Toast.LENGTH_SHORT).show()
         }
-
         tabCirculos.setOnClickListener {
             atualizarEstiloAbas(tabCirculos)
             Toast.makeText(this, "Círculos (Em breve)", Toast.LENGTH_SHORT).show()
@@ -174,34 +160,30 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun atualizarEstiloAbas(abaSelecionada: LinearLayout) {
-        // Lista de trios: (Layout da Aba, View do Indicador)
         val listaAbas = listOf(
             Pair(tabPessoas, indicatorPessoas),
             Pair(tabGrupos, indicatorGrupos),
             Pair(tabCirculos, indicatorCirculos),
             Pair(tabEu, indicatorEu)
         )
-
-        val corInativa = Color.parseColor("#888888") // Cinzento
+        val corInativa = Color.parseColor("#888888")
         val corAtiva = Color.WHITE
 
         for ((aba, indicador) in listaAbas) {
-            // A estrutura do XML é: 0=ImageView, 1=TextView, 2=View(Indicador)
+            // A ordem no XML é: 0=ImageView(Gone), 1=TextView, 2=View(Indicador)
             val icon = aba.getChildAt(0) as ImageView
             val text = aba.getChildAt(1) as TextView
 
             if (aba == abaSelecionada) {
-                // ESTADO ATIVO
                 icon.setColorFilter(corAtiva)
                 text.setTextColor(corAtiva)
                 text.typeface = Typeface.DEFAULT_BOLD
-                indicador.visibility = View.VISIBLE // Mostra o traço
+                indicador.visibility = View.VISIBLE
             } else {
-                // ESTADO INATIVO
                 icon.setColorFilter(corInativa)
                 text.setTextColor(corInativa)
                 text.typeface = Typeface.DEFAULT
-                indicador.visibility = View.INVISIBLE // Esconde o traço
+                indicador.visibility = View.INVISIBLE
             }
         }
     }
@@ -211,7 +193,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return (dp * density).toInt()
     }
 
-    // --- MARCADORES PERSONALIZADOS ---
     private fun criarIconeCircular(nome: String): BitmapDescriptor {
         val width = 120
         val height = 120
@@ -238,8 +219,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return BitmapDescriptorFactory.fromBitmap(bitmap)
     }
 
-    // --- MAPA E LOCALIZAÇÃO ---
-
     private fun checkLocationPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
@@ -260,7 +239,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mMap = googleMap
         mMap.mapType = GoogleMap.MAP_TYPE_HYBRID
         mMap.uiSettings.isZoomControlsEnabled = true
-        // Padding: 80dp topo (barra pesquisa), 240dp fundo (painel)
         mMap.setPadding(0, dpToPx(80), 0, dpToPx(240))
 
         val portugal = LatLng(39.55, -7.85)

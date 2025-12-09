@@ -7,14 +7,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- 1. MAPA -->
+    <!-- 1. MAPA (Fundo) -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/map"
         android:name="com.google.android.gms.maps.SupportMapFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
-    <!-- 2. BARRA DE PESQUISA -->
+    <!-- 2. BARRA DE PESQUISA FLUTUANTE (No Topo) -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="50dp"
@@ -29,11 +29,13 @@
             android:layout_height="match_parent"
             android:gravity="center_vertical"
             android:paddingHorizontal="15dp">
+
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@android:drawable/ic_menu_search"
                 app:tint="#BBBBBB"/>
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -55,7 +57,7 @@
         app:behavior_hideable="false"
         app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
 
-        <!-- 1. A PEGA (BARRINHA) -->
+        <!-- 1. A PEGA (BARRINHA CINZENTA) - FLUTUANTE EM CIMA -->
         <LinearLayout
             android:id="@+id/dragHandleArea"
             android:layout_width="match_parent"
@@ -64,6 +66,8 @@
             android:paddingBottom="8dp"
             android:clickable="true"
             android:focusable="true">
+
+            <!-- A Barra Cinzenta -->
             <View
                 android:id="@+id/dragHandle"
                 android:layout_width="75dp"
@@ -72,23 +76,24 @@
                 android:backgroundTint="#8E8E93"/>
         </LinearLayout>
 
-        <!-- 2. CABEÇALHO (SÓ TEXTO) -->
+        <!-- 2. CABEÇALHO (ONDE COMEÇA O FUNDO DE VIDRO) -->
         <LinearLayout
             android:id="@+id/headerContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:background="@drawable/bg_glass_header"
-            android:paddingTop="15dp"
+            android:paddingTop="10dp"
             android:paddingBottom="5dp">
 
-            <!-- LINHA DO MENU -->
+            <!-- LINHA DAS ABAS + BOTÃO + -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:paddingHorizontal="5dp">
 
+                <!-- ABAS -->
                 <!-- Aba Pessoas -->
                 <LinearLayout
                     android:id="@+id/tabPessoas"
@@ -101,30 +106,30 @@
                     android:focusable="true"
                     android:background="?attr/selectableItemBackgroundBorderless">
 
-                    <!-- ÍCONE ESCONDIDO (GONE) PARA NÃO CRASHAR O KOTLIN -->
+                    <!-- Ícone (VISIBILITY GONE - Escondido mas existe) -->
                     <ImageView
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:src="@android:drawable/ic_menu_myplaces"
                         app:tint="#FFFFFF"
                         android:visibility="gone"/>
 
-                    <!-- Aumentei o texto para 16sp para compensar a falta de ícone -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Pessoas"
-                        android:textSize="16sp"
+                        android:textSize="14sp"
                         android:textColor="#FFFFFF"
                         android:textStyle="bold"
                         android:layout_marginTop="2dp"/>
 
+                    <!-- O TRAÇO BRANCO -->
                     <View
                         android:id="@+id/indicatorPessoas"
                         android:layout_width="40dp"
                         android:layout_height="2dp"
                         android:background="#FFFFFF"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="6dp"
                         android:visibility="visible"/>
                 </LinearLayout>
 
@@ -141,8 +146,8 @@
                     android:background="?attr/selectableItemBackgroundBorderless">
 
                     <ImageView
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:src="@android:drawable/ic_menu_recent_history"
                         app:tint="#AAAAAA"
                         android:visibility="gone"/>
@@ -151,7 +156,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Grupos"
-                        android:textSize="16sp"
+                        android:textSize="14sp"
                         android:textColor="#AAAAAA"
                         android:layout_marginTop="2dp"/>
 
@@ -160,7 +165,7 @@
                         android:layout_width="40dp"
                         android:layout_height="2dp"
                         android:background="#FFFFFF"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="6dp"
                         android:visibility="invisible"/>
                 </LinearLayout>
 
@@ -177,8 +182,8 @@
                     android:background="?attr/selectableItemBackgroundBorderless">
 
                     <ImageView
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:src="@android:drawable/ic_menu_search"
                         app:tint="#AAAAAA"
                         android:visibility="gone"/>
@@ -187,7 +192,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Círculos"
-                        android:textSize="16sp"
+                        android:textSize="14sp"
                         android:textColor="#AAAAAA"
                         android:layout_marginTop="2dp"/>
 
@@ -196,7 +201,7 @@
                         android:layout_width="40dp"
                         android:layout_height="2dp"
                         android:background="#FFFFFF"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="6dp"
                         android:visibility="invisible"/>
                 </LinearLayout>
 
@@ -213,8 +218,8 @@
                     android:background="?attr/selectableItemBackgroundBorderless">
 
                     <ImageView
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:src="@android:drawable/ic_menu_info_details"
                         app:tint="#AAAAAA"
                         android:visibility="gone"/>
@@ -223,7 +228,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Eu"
-                        android:textSize="16sp"
+                        android:textSize="14sp"
                         android:textColor="#AAAAAA"
                         android:layout_marginTop="2dp"/>
 
@@ -232,7 +237,7 @@
                         android:layout_width="40dp"
                         android:layout_height="2dp"
                         android:background="#FFFFFF"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="6dp"
                         android:visibility="invisible"/>
                 </LinearLayout>
 
@@ -251,7 +256,7 @@
 
         </LinearLayout>
 
-        <!-- B. LISTA -->
+        <!-- 3. LISTA (Fundo mais Escuro) -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerFriends"
             android:layout_width="match_parent"
