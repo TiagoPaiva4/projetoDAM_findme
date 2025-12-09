@@ -1,34 +1,35 @@
 <?php
+// get_users_locations.php
 require_once 'db.php';
 
 header('Content-Type: application/json');
 
+// Receber o ID de quem está a pedir
 $requester_id = isset($_GET['user_id']) ? $_GET['user_id'] : 0;
 
 if ($requester_id == 0) {
-    echo json_encode(["users" => []]); // Se não houver ID, não mostra ninguém
+    echo json_encode(["users" => []]);
     exit();
 }
 
 try {
-    // 1. Seleciona localizações (l) e utilizadores (u)
-    // 2. Faz um JOIN com a tabela friends (f)
-    // 3. Verifica se o requester_id é user_a OU user_b nessa amizade
-    // 4. E garante que o status é 'accepted'
-
+    // Query corrigida usando '?' em vez de nomes
     $sql = "
         SELECT u.id_user, u.name, l.latitude, l.longitude, l.last_update
         FROM locations l
         JOIN users u ON l.id_user = u.id_user
         JOIN friends f ON
-            (f.user_a = :me AND f.user_b = u.id_user)
+            (f.user_a = ? AND f.user_b = u.id_user)
             OR
-            (f.user_b = :me AND f.user_a = u.id_user)
+            (f.user_b = ? AND f.user_a = u.id_user)
         WHERE f.status = 'accepted'
     ";
 
     $stmt = $pdo->prepare($sql);
-    $stmt->execute(['me' => $requester_id]);
+
+    // IMPORTANTE: Passamos o ID duas vezes, uma para cada '?' na query
+    $stmt->execute([$requester_id, $requester_id]);
+
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode(["users" => $users]);
