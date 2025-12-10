@@ -1,4 +1,4 @@
-package pt.ipt.projetodam_findme
+package pt.ipt.projetodam_findme // Confirma se o pacote é este
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -41,6 +41,8 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import org.json.JSONObject
 
+enum class Tab { PEOPLE, GROUPS, CIRCLES, ME }
+
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
@@ -58,6 +60,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private val markersMap = HashMap<Int, Marker>()
 
     private lateinit var sheetBehavior: BottomSheetBehavior<LinearLayout>
+
+    // Variáveis para a funcionalidade de Grupos (NOVO)
+    private lateinit var groupsAdapter: GroupsAdapter
+    private val groupsList = ArrayList<Group>()
+    private var currentTab = Tab.PEOPLE
 
     // UI Elements - ABAS
     private lateinit var tabPessoas: LinearLayout
@@ -112,12 +119,22 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         recyclerFriends = findViewById(R.id.recyclerFriends)
         recyclerFriends.layoutManager = LinearLayoutManager(this)
+
+        // Adapter de Amigos (Defeito)
         adapter = FriendsAdapter(friendsList) { friend ->
             val pos = LatLng(friend.latitude, friend.longitude)
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
             sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
         }
         recyclerFriends.adapter = adapter
+
+        // Adapter de Grupos (NOVO)
+        groupsAdapter = GroupsAdapter(groupsList) { group ->
+            // Ação ao clicar num grupo (Ex: zoom no primeiro membro, ou abrir detalhe)
+            Toast.makeText(this, "Abrir grupo: ${group.name}", Toast.LENGTH_SHORT).show()
+            sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+        }
+
 
         findViewById<ImageView>(R.id.btnAddFriend).setOnClickListener {
             startActivity(Intent(this, AddFriendActivity::class.java))
@@ -136,26 +153,40 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Estado Inicial
         atualizarEstiloAbas(tabPessoas)
+        currentTab = Tab.PEOPLE
 
         // Listeners
         tabPessoas.setOnClickListener {
             atualizarEstiloAbas(tabPessoas)
+            if (currentTab != Tab.PEOPLE) {
+                currentTab = Tab.PEOPLE
+                recyclerFriends.adapter = adapter // Troca para FriendsAdapter
+            }
             sheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
             buscarAmigos()
         }
 
-        tabEu.setOnClickListener {
-            atualizarEstiloAbas(tabEu)
-            startActivity(Intent(this, ProfileActivity::class.java))
-        }
-
+        // NOVO LISTENER PARA GRUPOS
         tabGrupos.setOnClickListener {
             atualizarEstiloAbas(tabGrupos)
-            Toast.makeText(this, "Grupos (Em breve)", Toast.LENGTH_SHORT).show()
+            if (currentTab != Tab.GROUPS) {
+                currentTab = Tab.GROUPS
+                recyclerFriends.adapter = groupsAdapter // Troca para GroupsAdapter
+            }
+            sheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+            buscarGrupos()
         }
+
         tabCirculos.setOnClickListener {
             atualizarEstiloAbas(tabCirculos)
+            currentTab = Tab.CIRCLES
             Toast.makeText(this, "Círculos (Em breve)", Toast.LENGTH_SHORT).show()
+        }
+
+        tabEu.setOnClickListener {
+            atualizarEstiloAbas(tabEu)
+            currentTab = Tab.ME
+            startActivity(Intent(this, ProfileActivity::class.java))
         }
     }
 
@@ -166,7 +197,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             Pair(tabCirculos, indicatorCirculos),
             Pair(tabEu, indicatorEu)
         )
-        val corInativa = Color.parseColor("#888888")
+        val corInativa = Color.parseColor("#AAAAAA") // Cor ajustada
         val corAtiva = Color.WHITE
 
         for ((aba, indicador) in listaAbas) {
@@ -270,13 +301,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         isFirstLocation = false
                         val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
                         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 6f))
-                        buscarAmigos()
+                        if (currentTab == Tab.PEOPLE) buscarAmigos()
+                        if (currentTab == Tab.GROUPS) buscarGrupos()
                     }
 
                     if (lastSentLocation == null || lastSentLocation!!.distanceTo(currentLocation) >= MIN_DISTANCE_METERS) {
                         lastSentLocation = currentLocation
                         enviarLocalizacao(userId, currentLocation.latitude, currentLocation.longitude)
-                        buscarAmigos()
+                        if (currentTab == Tab.PEOPLE) buscarAmigos()
+                        // Não é estritamente necessário buscar grupos após cada localização,
+                        // mas pode ser útil para atualizar o estado.
                     }
                 }
             }
@@ -309,6 +343,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
             try {
+                if (currentTab != Tab.PEOPLE) return@JsonObjectRequest
+
                 val usersArray = response.getJSONArray("users")
                 friendsList.clear()
 
@@ -344,6 +380,34 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
             } catch (e: Exception) { Log.e("API", "Erro JSON: ${e.message}") }
         }, { error -> Log.e("API", "Erro Volley: ${error.message}") })
+
+        queue.add(request)
+    }
+
+    // NOVA FUNÇÃO PARA BUSCAR GRUPOS
+    private fun buscarGrupos() {
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_my_groups.php?user_id=$userId"
+        val queue = Volley.newRequestQueue(this)
+
+        val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
+            try {
+                if (currentTab != Tab.GROUPS) return@JsonObjectRequest // Ignora se o utilizador já trocou de aba
+
+                val groupsArray = response.getJSONArray("groups")
+                groupsList.clear()
+
+                for (i in 0 until groupsArray.length()) {
+                    val groupObj = groupsArray.getJSONObject(i)
+                    val id = groupObj.getInt("id_group")
+                    val name = groupObj.getString("name_group")
+                    val totalMembers = groupObj.getInt("total_members")
+                    groupsList.add(Group(id, name, totalMembers))
+                }
+
+                groupsAdapter.notifyDataSetChanged()
+
+            } catch (e: Exception) { Log.e("API", "Erro JSON Groups: ${e.message}") }
+        }, { error -> Log.e("API", "Erro Volley Groups: ${error.message}") })
 
         queue.add(request)
     }
