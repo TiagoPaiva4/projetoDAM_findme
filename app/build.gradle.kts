@@ -52,4 +52,6 @@ dependencies {
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     // GPS e Localização (vamos precisar a seguir)
     implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    implementation("com.github.Dimezis:BlurView:version-2.0.3")
 }

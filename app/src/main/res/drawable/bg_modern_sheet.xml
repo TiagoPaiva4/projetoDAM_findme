@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Mudei de #1C1C1E para #E62C2C2E (Cinzento Apple com 90% opacidade) -->
-    <solid android:color="#E62C2C2E"/>
+    <solid android:color="#2C2C2E"/> <!-- Cinzento "Glass" -->
     <corners
         android:topLeftRadius="24dp"
         android:topRightRadius="24dp"
