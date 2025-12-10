@@ -50,13 +50,13 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private var groupId: Int = -1
     private var groupName: String = ""
-    private var myUserId: String = ""
-    private var groupCreatorId: Int = -1 // NOVO: ID do criador do grupo
+    private var myUserId: Int = -1
+    private var groupCreatorId: Int = -1
 
     private lateinit var txtGroupNameTitle: TextView
     private lateinit var txtGroupMemberCount: TextView
     private lateinit var btnAddMember: ImageView
-    private lateinit var btnLeaveGroup: Button // NOVO
+    private lateinit var btnLeaveGroup: Button
 
     private lateinit var recyclerGroupMembers: RecyclerView
     private val membersList = ArrayList<Friend>()
@@ -70,9 +70,7 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
-            // Membro adicionado com sucesso, recarregar a lista
-            Toast.makeText(this, "A atualizar lista de membros...", Toast.LENGTH_SHORT).show()
-            // Recarrega a localização e os dados
+            Toast.makeText(this, "Membro adicionado. A atualizar...", Toast.LENGTH_SHORT).show()
             fetchMyCurrentLocation()
         }
     }
@@ -81,7 +79,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_group_details)
 
-        // 1. Obter dados do Intent
         groupId = intent.getIntExtra("GROUP_ID", -1)
         groupName = intent.getStringExtra("GROUP_NAME") ?: "Detalhes do Grupo"
         if (groupId == -1) {
@@ -91,13 +88,13 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         val prefs = getSharedPreferences("SessaoUsuario", Context.MODE_PRIVATE)
-        myUserId = prefs.getInt("id_user", -1).toString()
+        myUserId = prefs.getInt("id_user", -1)
 
         // 2. Configurar UI
         txtGroupNameTitle = findViewById(R.id.txtGroupNameTitle)
         txtGroupMemberCount = findViewById(R.id.txtGroupMemberCount)
         btnAddMember = findViewById(R.id.btnAddMember)
-        btnLeaveGroup = findViewById(R.id.btnLeaveGroup) // Inicialização do NOVO botão
+        btnLeaveGroup = findViewById(R.id.btnLeaveGroup)
 
         txtGroupNameTitle.text = groupName
 
@@ -105,7 +102,7 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFragment = supportFragmentManager.findFragmentById(R.id.mapGroup) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        // 4. Configurar Bottom Sheet e RecyclerView
+        // 4. Configurar Bottom Sheet
         val bottomSheet = findViewById<LinearLayout>(R.id.bottomSheetGroup)
 
         try {
@@ -115,18 +112,29 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
             Log.e("GroupDetails", "Erro BottomSheet: ${e.message}")
         }
 
+        // 5. Configurar Adapter e RecyclerView
+        val removeMemberAction: (Friend) -> Unit = { friend ->
+            removeMember(friend.id, friend.name)
+        }
 
         recyclerGroupMembers = findViewById(R.id.recyclerGroupMembers)
         recyclerGroupMembers.layoutManager = LinearLayoutManager(this)
-        membersAdapter = FriendsAdapter(membersList) { member ->
-            // Ação ao clicar no membro
-            val pos = LatLng(member.latitude, member.longitude)
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
-            sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-        }
+
+        membersAdapter = FriendsAdapter(
+            friendsList = membersList,
+            clickListener = { member ->
+                val pos = LatLng(member.latitude, member.longitude)
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
+                sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+            },
+            currentUserId = myUserId,
+            groupCreatorId = groupCreatorId,
+            removeListener = removeMemberAction
+        )
         recyclerGroupMembers.adapter = membersAdapter
 
-        // 5. Listeners
+
+        // 6. Listeners
         findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
         btnAddMember.setOnClickListener {
             val intent = Intent(this, AddMemberActivity::class.java).apply {
@@ -136,10 +144,10 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         btnLeaveGroup.setOnClickListener {
-            leaveGroup() // NOVO listener
+            leaveGroup()
         }
 
-        // 6. Começar a buscar localizações (com um pequeno atraso para dar tempo ao mapa)
+        // 7. Começar a buscar localizações (com um pequeno atraso para dar tempo ao mapa)
         Handler(Looper.getMainLooper()).postDelayed({
             fetchMyCurrentLocation()
         }, 500)
@@ -179,21 +187,17 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // NOVO: Função para obter a informação do criador
     private fun fetchGroupCreator() {
-        // Assume que existe um endpoint ou que o get_group_locations devolve esta info.
-        // Como o get_group_locations.php não devolve, vamos criar uma chamada separada se necessário.
-        // Por simplificação, vamos assumir que o get_group_locations.php foi alterado para devolver o ID do criador.
-        // Se o get_group_locations.php não foi alterado, o id do criador será -1.
+        // Assume que este método é chamado depois de `buscarLocalizacoesDoGrupo`
+        // ter tentado definir `groupCreatorId`.
 
-        if (groupCreatorId.toString() == myUserId) {
+        if (myUserId == groupCreatorId) {
             btnLeaveGroup.text = "ELIMINAR GRUPO"
             btnLeaveGroup.backgroundTintList = ContextCompat.getColorStateList(this, android.R.color.holo_red_dark)
         } else {
             btnLeaveGroup.text = "SAIR DESTE GRUPO"
             btnLeaveGroup.backgroundTintList = ContextCompat.getColorStateList(this, android.R.color.holo_red_light)
         }
-
     }
 
     private fun buscarLocalizacoesDoGrupo() {
@@ -206,10 +210,10 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
             try {
                 val membersArray = response.getJSONArray("members")
 
-                // Supondo que a API devolve o criador do grupo no JSON,
-                // por exemplo, response.optInt("creator_id", -1)
-                // Se a sua API não devolve o creator_id, isto terá que ser alterado.
-                // Por enquanto, vamos assumir que a API devolve uma estrutura mais simples.
+                // NOTA: Se o seu backend 'get_group_locations.php' não devolve o creator_id,
+                // a lógica abaixo de 'groupCreatorId' é a parte mais fraca.
+                // Aqui estamos a assumir o ID 1 como criador para testar a funcionalidade.
+                if (myUserId == 1) groupCreatorId = 1
 
                 membersList.clear()
                 markersMap.values.forEach { it.remove() }
@@ -220,10 +224,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
                 val boundsBuilder = LatLngBounds.builder()
                 var validLocationCount = 0
 
-                // NOVO: Verifica quem é o criador se a API o devolver (A API atual não devolve)
-                // Usaremos um ID fictício para testes se a API não for alterada
-                // groupCreatorId = 1 // <<--- Altere se souber o ID do criador ou se a API devolver.
-
                 for (i in 0 until membersArray.length()) {
                     val memberObj = membersArray.getJSONObject(i)
                     val memberId = memberObj.getInt("id_user")
@@ -231,12 +231,12 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
 
                     val lat = memberObj.optDouble("latitude", 0.0)
                     val lon = memberObj.optDouble("longitude", 0.0)
-                    val lastUpd = memberObj.optString("last_update", "Desconhecido")
+                    val lastUpd = memberObj.optString("last_update", "Localização indisponível")
 
                     val hasLocation = (lat != 0.0 || lon != 0.0)
 
                     var distanceMeters = 0f
-                    var statusText = "Localização indisponível"
+                    var statusText = lastUpd
 
                     if (hasLocation) {
                         val memberPos = LatLng(lat, lon)
@@ -254,21 +254,14 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
                         val results = FloatArray(1)
                         Location.distanceBetween(myLastLocation!!.latitude, myLastLocation!!.longitude, lat, lon, results)
                         distanceMeters = results[0]
-                        statusText = lastUpd
+
+                    } else {
+                        statusText = "Localização indisponível"
                     }
 
                     membersList.add(Friend(memberId, name, lat, lon, distanceMeters, statusText))
                 }
 
-                // Se groupCreatorId não foi preenchido pela API, tenta preencher aqui (por exemplo, assumindo que o primeiro membro é o criador, o que é inseguro, mas para testes...)
-                if (membersArray.length() > 0) {
-                    // Tentativa de obter o criador. Se o seu backend não foi alterado para incluir o criador,
-                    // esta lógica pode ser inexata ou precisar de uma chamada extra.
-                    // Vamos apenas assumir que, se o utilizador atual é o membro 1, ele é o criador
-                    if (myUserId == "1") {
-                        groupCreatorId = 1
-                    }
-                }
                 fetchGroupCreator() // Atualiza o texto do botão
 
                 if (validLocationCount > 0 && ::mMap.isInitialized) {
@@ -283,6 +276,20 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
 
                 membersList.sortByDescending { it.distanceMeters > 0f }
+
+                // ATUALIZAR ADAPTER COM NOVOS DADOS E ID DO CRIADOR
+                membersAdapter = FriendsAdapter(
+                    friendsList = membersList,
+                    clickListener = { member ->
+                        val pos = LatLng(member.latitude, member.longitude)
+                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
+                        sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+                    },
+                    currentUserId = myUserId,
+                    groupCreatorId = groupCreatorId,
+                    removeListener = { friend -> removeMember(friend.id, friend.name) }
+                )
+                recyclerGroupMembers.adapter = membersAdapter
                 membersAdapter.notifyDataSetChanged()
 
             } catch (e: Exception) {
@@ -295,14 +302,14 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         queue.add(request)
     }
 
+    // ATUALIZADO: Usado para sair do grupo
     private fun leaveGroup() {
-        val prefs = getSharedPreferences("SessaoUsuario", Context.MODE_PRIVATE)
-        val myId = prefs.getInt("id_user", -1).toString()
+        removeMember(myUserId, "Eu")
+    }
 
-        // URL do script PHP
+    // NOVO: Função central para remover qualquer membro (incluindo o próprio utilizador)
+    private fun removeMember(memberId: Int, memberName: String) {
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/remove_group_member.php"
-
-        val isCreator = if (myId == groupCreatorId.toString()) "true" else "false"
 
         val queue = Volley.newRequestQueue(this)
         val request = object : StringRequest(
@@ -313,9 +320,14 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
                     if (json.has("success")) {
                         Toast.makeText(this, json.getString("success"), Toast.LENGTH_LONG).show()
 
-                        // Sinaliza que a MainActivity deve atualizar a lista de grupos
-                        setResult(RESULT_OK)
-                        finish()
+                        if (memberId == myUserId || json.optBoolean("group_deleted", false)) {
+                            // Se saiu/eliminou, fecha e atualiza a lista principal
+                            setResult(RESULT_OK)
+                            finish()
+                        } else {
+                            // Se removeu outro membro, apenas recarrega a lista
+                            fetchMyCurrentLocation()
+                        }
                     } else if (json.has("error")) {
                         Toast.makeText(this, json.getString("error"), Toast.LENGTH_LONG).show()
                     }
@@ -330,16 +342,15 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun getParams(): MutableMap<String, String> {
                 return mutableMapOf(
                     "group_id" to groupId.toString(),
-                    "user_id" to myId,
-                    "is_creator" to isCreator
+                    "requester_id" to myUserId.toString(),
+                    "member_id" to memberId.toString()
                 )
             }
         }
-
         queue.add(request)
     }
 
-    // (Mantenha a função criarIconeCircular inalterada)
+
     private fun criarIconeCircular(nome: String): BitmapDescriptor {
         val width = 120
         val height = 120

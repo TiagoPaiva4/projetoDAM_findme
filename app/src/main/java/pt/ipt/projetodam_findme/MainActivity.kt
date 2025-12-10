@@ -82,13 +82,25 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var indicatorCirculos: View
     private lateinit var indicatorEu: View
 
-    // Activity Result Launcher para a Activity de Criação de Grupo
+    // Activity Result Launcher para a Criação de Grupo (Existente)
     private val createGroupResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
             // O grupo foi criado com sucesso, atualiza a lista
             buscarGrupos()
+        }
+    }
+
+    // NOVO: Activity Result Launcher para Detalhes do Grupo
+    private val groupDetailsResultLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            // O utilizador saiu ou eliminou o grupo, atualiza a lista se estiver no tab GRUPOS
+            if (currentTab == Tab.GROUPS) {
+                buscarGrupos()
+            }
         }
     }
 
@@ -136,22 +148,26 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         recyclerFriends.layoutManager = LinearLayoutManager(this)
 
         // Adapter de Amigos (Defeito)
-        adapter = FriendsAdapter(friendsList) { friend ->
-            val pos = LatLng(friend.latitude, friend.longitude)
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
-            sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-        }
+        // CORRIGIDO: Passar currentUserId explicitamente e usar argumentos nomeados
+        adapter = FriendsAdapter(
+            friendsList = friendsList,
+            clickListener = { friend ->
+                val pos = LatLng(friend.latitude, friend.longitude)
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
+                sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+            },
+            currentUserId = userId.toInt() // <-- Passa o ID do utilizador logado (Necessário para o construtor)
+        )
         recyclerFriends.adapter = adapter
 
-        // Adapter de Grupos (NOVO)
+        // Adapter de Grupos
         groupsAdapter = GroupsAdapter(groupsList) { group ->
-            // Ação ao clicar num grupo (Antiga: Toast)
-            // NOVO: Abre a GroupDetailsActivity
+            // NOVO: Usa o groupDetailsResultLauncher
             val intent = Intent(this, GroupDetailsActivity::class.java).apply {
                 putExtra("GROUP_ID", group.id)
                 putExtra("GROUP_NAME", group.name)
             }
-            startActivity(intent)
+            groupDetailsResultLauncher.launch(intent) // <--- ALTERADO
         }
 
         // Botão + (Add/Create)
