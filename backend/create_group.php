@@ -15,8 +15,8 @@ if (!$name || !$user_id) {
 try {
     $pdo->beginTransaction();
 
-    // 1. Criar Grupo
-    $stmt = $pdo->prepare("INSERT INTO groups (name_group, created_by) VALUES (?, ?)");
+    // 1. Criar Grupo (CORRIGIDO: A tabela 'groups' deve ter backticks)
+    $stmt = $pdo->prepare("INSERT INTO `groups` (name_group, created_by) VALUES (?, ?)");
     $stmt->execute([$name, $user_id]);
     $group_id = $pdo->lastInsertId();
 
