@@ -143,11 +143,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         recyclerFriends.adapter = adapter
 
-        // Adapter de Grupos
+        // Adapter de Grupos (NOVO)
         groupsAdapter = GroupsAdapter(groupsList) { group ->
-            // Ação ao clicar num grupo
-            Toast.makeText(this, "Abrir grupo: ${group.name}", Toast.LENGTH_SHORT).show()
-            sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+            // Ação ao clicar num grupo (Antiga: Toast)
+            // NOVO: Abre a GroupDetailsActivity
+            val intent = Intent(this, GroupDetailsActivity::class.java).apply {
+                putExtra("GROUP_ID", group.id)
+                putExtra("GROUP_NAME", group.name)
+            }
+            startActivity(intent)
         }
 
         // Botão + (Add/Create)
