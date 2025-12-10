@@ -75,21 +75,27 @@ class LoginActivity : AppCompatActivity() {
                         val userId = userObj.getInt("id")
                         val userName = userObj.getString("name")
 
-                        // 2. Guardar TUDO nas SharedPreferences
+
+
+
+                        // ...
+// 2. Guardar TUDO nas SharedPreferences
                         val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
-                        sharedPreferences.edit {
+                        sharedPreferences.edit(commit = true) {  // <--- CORREÇÃO AQUI
                             putBoolean("logado", true)
-                            putInt("id_user", userId)       // <--- Importante para o Mapa!
+                            putInt("id_user", userId)
                             putString("nome_user", userName)
                             putString("email_user", email)
                             putString("token", token)
                         }
+// ...
 
                         Toast.makeText(this, "Bem-vindo, $userName!", Toast.LENGTH_SHORT).show()
 
                         // 3. Mudar para o ecrã principal
                         startActivity(Intent(this, MainActivity::class.java))
                         finish()
+
 
                     } catch (e: Exception) {
                         Toast.makeText(this, "Erro ao processar dados: ${e.message}", Toast.LENGTH_LONG).show()
