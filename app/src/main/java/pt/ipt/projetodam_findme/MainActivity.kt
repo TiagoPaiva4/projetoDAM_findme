@@ -18,6 +18,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -41,6 +42,8 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import org.json.JSONObject
 
+enum class Tab { PEOPLE, GROUPS, CIRCLES, ME }
+
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
@@ -59,6 +62,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var sheetBehavior: BottomSheetBehavior<LinearLayout>
 
+    // Variáveis para a funcionalidade de Grupos
+    private lateinit var groupsAdapter: GroupsAdapter
+    private val groupsList = ArrayList<Group>()
+    private var currentTab = Tab.PEOPLE
+
+    // Elemento para o botão de adicionar
+    private lateinit var btnAddFriend: ImageView
+
     // UI Elements - ABAS
     private lateinit var tabPessoas: LinearLayout
     private lateinit var tabGrupos: LinearLayout
@@ -70,6 +81,29 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var indicatorGrupos: View
     private lateinit var indicatorCirculos: View
     private lateinit var indicatorEu: View
+
+    // Activity Result Launcher para a Criação de Grupo (Existente)
+    private val createGroupResultLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            // O grupo foi criado com sucesso, atualiza a lista
+            buscarGrupos()
+        }
+    }
+
+    // NOVO: Activity Result Launcher para Detalhes do Grupo
+    private val groupDetailsResultLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            // O utilizador saiu ou eliminou o grupo, atualiza a lista se estiver no tab GRUPOS
+            if (currentTab == Tab.GROUPS) {
+                buscarGrupos()
+            }
+        }
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,16 +146,36 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         recyclerFriends = findViewById(R.id.recyclerFriends)
         recyclerFriends.layoutManager = LinearLayoutManager(this)
-        adapter = FriendsAdapter(friendsList) { friend ->
-            val pos = LatLng(friend.latitude, friend.longitude)
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
-            sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
-        }
+
+        // Adapter de Amigos (Defeito)
+        // CORRIGIDO: Passar currentUserId explicitamente e usar argumentos nomeados
+        adapter = FriendsAdapter(
+            friendsList = friendsList,
+            clickListener = { friend ->
+                val pos = LatLng(friend.latitude, friend.longitude)
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
+                sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+            },
+            currentUserId = userId.toInt() // <-- Passa o ID do utilizador logado (Necessário para o construtor)
+        )
         recyclerFriends.adapter = adapter
 
-        findViewById<ImageView>(R.id.btnAddFriend).setOnClickListener {
-            startActivity(Intent(this, AddFriendActivity::class.java))
+        // Adapter de Grupos
+        groupsAdapter = GroupsAdapter(groupsList) { group ->
+            // NOVO: Usa o groupDetailsResultLauncher
+            val intent = Intent(this, GroupDetailsActivity::class.java).apply {
+                putExtra("GROUP_ID", group.id)
+                putExtra("GROUP_NAME", group.name)
+            }
+            groupDetailsResultLauncher.launch(intent) // <--- ALTERADO
         }
+
+        // Botão + (Add/Create)
+        btnAddFriend = findViewById(R.id.btnAddFriend)
+        btnAddFriend.setOnClickListener {
+            handleAddButtonClick()
+        }
+
 
         // Inicializar Views
         tabPessoas = findViewById(R.id.tabPessoas)
@@ -136,26 +190,56 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Estado Inicial
         atualizarEstiloAbas(tabPessoas)
+        currentTab = Tab.PEOPLE
 
         // Listeners
         tabPessoas.setOnClickListener {
             atualizarEstiloAbas(tabPessoas)
+            if (currentTab != Tab.PEOPLE) {
+                currentTab = Tab.PEOPLE
+                recyclerFriends.adapter = adapter
+            }
             sheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
             buscarAmigos()
         }
 
-        tabEu.setOnClickListener {
-            atualizarEstiloAbas(tabEu)
-            startActivity(Intent(this, ProfileActivity::class.java))
-        }
-
         tabGrupos.setOnClickListener {
             atualizarEstiloAbas(tabGrupos)
-            Toast.makeText(this, "Grupos (Em breve)", Toast.LENGTH_SHORT).show()
+            if (currentTab != Tab.GROUPS) {
+                currentTab = Tab.GROUPS
+                recyclerFriends.adapter = groupsAdapter
+            }
+            sheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+            buscarGrupos()
         }
+
         tabCirculos.setOnClickListener {
             atualizarEstiloAbas(tabCirculos)
+            currentTab = Tab.CIRCLES
             Toast.makeText(this, "Círculos (Em breve)", Toast.LENGTH_SHORT).show()
+        }
+
+        tabEu.setOnClickListener {
+            atualizarEstiloAbas(tabEu)
+            currentTab = Tab.ME
+            startActivity(Intent(this, ProfileActivity::class.java))
+        }
+    }
+
+    private fun handleAddButtonClick() {
+        when (currentTab) {
+            Tab.PEOPLE -> {
+                // Abre a Activity para Adicionar Amigo
+                startActivity(Intent(this, AddFriendActivity::class.java))
+            }
+            Tab.GROUPS -> {
+                // Abre a Activity para Criar Grupo (usando o launcher para detetar o sucesso)
+                val intent = Intent(this, CreateGroupActivity::class.java)
+                createGroupResultLauncher.launch(intent)
+            }
+            else -> {
+                Toast.makeText(this, "Função de adicionar não disponível neste separador.", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -166,7 +250,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             Pair(tabCirculos, indicatorCirculos),
             Pair(tabEu, indicatorEu)
         )
-        val corInativa = Color.parseColor("#888888")
+        val corInativa = Color.parseColor("#AAAAAA")
         val corAtiva = Color.WHITE
 
         for ((aba, indicador) in listaAbas) {
@@ -270,13 +354,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         isFirstLocation = false
                         val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
                         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 6f))
-                        buscarAmigos()
+                        if (currentTab == Tab.PEOPLE) buscarAmigos()
+                        if (currentTab == Tab.GROUPS) buscarGrupos()
                     }
 
                     if (lastSentLocation == null || lastSentLocation!!.distanceTo(currentLocation) >= MIN_DISTANCE_METERS) {
                         lastSentLocation = currentLocation
                         enviarLocalizacao(userId, currentLocation.latitude, currentLocation.longitude)
-                        buscarAmigos()
+                        if (currentTab == Tab.PEOPLE) buscarAmigos()
                     }
                 }
             }
@@ -309,8 +394,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
             try {
+                if (currentTab != Tab.PEOPLE) return@JsonObjectRequest
+
                 val usersArray = response.getJSONArray("users")
                 friendsList.clear()
+                markersMap.values.forEach { it.remove() } // Remove todos os marcadores antigos
+                markersMap.clear()
 
                 for (i in 0 until usersArray.length()) {
                     val userObj = usersArray.getJSONObject(i)
@@ -322,18 +411,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                     val friendPos = LatLng(lat, lon)
 
-                    if (markersMap.containsKey(friendId)) {
-                        markersMap[friendId]?.position = friendPos
-                        markersMap[friendId]?.setIcon(criarIconeCircular(name))
-                    } else {
-                        val markerOptions = MarkerOptions()
-                            .position(friendPos)
-                            .title(name)
-                            .icon(criarIconeCircular(name))
-                            .anchor(0.5f, 0.5f)
-                        val marker = mMap.addMarker(markerOptions)
-                        if (marker != null) markersMap[friendId] = marker
-                    }
+                    val markerOptions = MarkerOptions()
+                        .position(friendPos)
+                        .title(name)
+                        .icon(criarIconeCircular(name))
+                        .anchor(0.5f, 0.5f)
+                    val marker = mMap.addMarker(markerOptions)
+                    if (marker != null) markersMap[friendId] = marker
 
                     val results = FloatArray(1)
                     Location.distanceBetween(lastSentLocation!!.latitude, lastSentLocation!!.longitude, lat, lon, results)
@@ -344,6 +428,33 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
             } catch (e: Exception) { Log.e("API", "Erro JSON: ${e.message}") }
         }, { error -> Log.e("API", "Erro Volley: ${error.message}") })
+
+        queue.add(request)
+    }
+
+    private fun buscarGrupos() {
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_my_groups.php?user_id=$userId"
+        val queue = Volley.newRequestQueue(this)
+
+        val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
+            try {
+                if (currentTab != Tab.GROUPS) return@JsonObjectRequest
+
+                val groupsArray = response.getJSONArray("groups")
+                groupsList.clear()
+
+                for (i in 0 until groupsArray.length()) {
+                    val groupObj = groupsArray.getJSONObject(i)
+                    val id = groupObj.getInt("id_group")
+                    val name = groupObj.getString("name_group")
+                    val totalMembers = groupObj.getInt("total_members")
+                    groupsList.add(Group(id, name, totalMembers))
+                }
+
+                groupsAdapter.notifyDataSetChanged()
+
+            } catch (e: Exception) { Log.e("API", "Erro JSON Groups: ${e.message}") }
+        }, { error -> Log.e("API", "Erro Volley Groups: ${error.message}") })
 
         queue.add(request)
     }

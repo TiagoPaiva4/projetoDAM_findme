@@ -18,7 +18,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-// Modelo de Dados
+// Modelo de Dados (Mantenha inalterado)
 data class Friend(
     val id: Int,
     val name: String,
@@ -29,26 +29,30 @@ data class Friend(
 )
 
 class FriendsAdapter(
-    private val friends: List<Friend>,
-    private val onClick: (Friend) -> Unit
-) : RecyclerView.Adapter<FriendsAdapter.ViewHolder>() {
+    private val friendsList: List<Friend>,
+    private val clickListener: (Friend) -> Unit,
+    private val currentUserId: Int = -1,
+    private val groupCreatorId: Int = -2,
+    private val removeListener: ((Friend) -> Unit)? = null
+) : RecyclerView.Adapter<FriendsAdapter.FriendViewHolder>() {
 
-    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val imgAvatar: ImageView = view.findViewById(R.id.imgAvatar)
-        val txtName: TextView = view.findViewById(R.id.txtName)
-        val txtStatus: TextView = view.findViewById(R.id.txtStatus)
-        val txtDistance: TextView = view.findViewById(R.id.txtDistance)
+    class FriendViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        // IDs CORRIGIDOS para corresponderem ao item_person_modern.xml
+        val imgAvatar: ImageView = itemView.findViewById(R.id.imgAvatar)
+        val txtName: TextView = itemView.findViewById(R.id.txtName)
+        val txtStatus: TextView = itemView.findViewById(R.id.txtStatus)
+        val txtDistance: TextView = itemView.findViewById(R.id.txtDistance)
+        val btnRemove: ImageView = itemView.findViewById(R.id.btnRemoveMember)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_person_modern, parent, false)
-        return ViewHolder(view)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FriendViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_person_modern, parent, false)
+        return FriendViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val friend = friends[position]
-        val context = holder.itemView.context // Necessário para o Geocoder
+    override fun onBindViewHolder(holder: FriendViewHolder, position: Int) {
+        val friend = friendsList[position]
+        val context = holder.itemView.context
 
         // 1. Nome
         holder.txtName.text = friend.name
@@ -56,51 +60,68 @@ class FriendsAdapter(
         // 2. Avatar (Letra Inicial)
         holder.imgAvatar.setImageBitmap(desenharAvatar(friend.name))
 
-        // 3. Tempo e Cidade
+        // 3. Status/Tempo/Cidade
         val tempoTexto = getTempoRelativo(friend.lastUpdate)
         val cidade = obterCidade(context, friend.latitude, friend.longitude)
 
-        // Junta a cidade com o tempo: "Coimbra • Há 5 min"
-        if (cidade.isNotEmpty()) {
-            holder.txtStatus.text = "$cidade • $tempoTexto"
+        val statusText = if (friend.distanceMeters <= 0f) {
+            "Localização indisponível"
+        } else if (cidade.isNotEmpty()) {
+            "$cidade • $tempoTexto"
         } else {
-            holder.txtStatus.text = tempoTexto
+            tempoTexto
         }
+        holder.txtStatus.text = statusText
 
         // 4. Distância
-        val distString = if (friend.distanceMeters >= 1000) {
-            String.format("%.1f km", friend.distanceMeters / 1000)
+        if (friend.distanceMeters > 0f) {
+            val distanceKm = friend.distanceMeters / 1000
+            val formattedDistance = if (distanceKm < 1) {
+                "${friend.distanceMeters.toInt()} m"
+            } else {
+                String.format("%.1f km", distanceKm)
+            }
+            holder.txtDistance.text = formattedDistance
         } else {
-            "${friend.distanceMeters.toInt()} m"
+            holder.txtDistance.text = ""
         }
-        holder.txtDistance.text = distString
 
-        // Clique
-        holder.itemView.setOnClickListener { onClick(friend) }
+        // Lógica de clique para abrir o mapa
+        holder.itemView.setOnClickListener { clickListener(friend) }
+
+        // LÓGICA DO BOTÃO DE REMOÇÃO
+        val canRemove = removeListener != null && currentUserId == groupCreatorId && friend.id != currentUserId
+
+        if (canRemove) {
+            holder.btnRemove.visibility = View.VISIBLE
+            holder.btnRemove.setOnClickListener {
+                removeListener.invoke(friend)
+            }
+        } else {
+            holder.btnRemove.visibility = View.GONE
+        }
     }
 
-    override fun getItemCount() = friends.size
+    override fun getItemCount() = friendsList.size
 
-    // --- NOVA FUNÇÃO: OBTER NOME DA CIDADE ---
+    // --- FUNÇÕES AUXILIARES ---
+
     private fun obterCidade(context: Context, lat: Double, lon: Double): String {
         return try {
             val geocoder = Geocoder(context, Locale.getDefault())
-            // Pega 1 resultado
             val addresses = geocoder.getFromLocation(lat, lon, 1)
 
             if (!addresses.isNullOrEmpty()) {
-                // Tenta obter a localidade (Cidade), se não der, tenta o subAdminArea ou adminArea
                 val address = addresses[0]
                 address.locality ?: address.subAdminArea ?: address.adminArea ?: ""
             } else {
                 ""
             }
         } catch (e: Exception) {
-            "" // Se der erro (sem net, etc), retorna vazio
+            ""
         }
     }
 
-    // --- FUNÇÃO PARA CALCULAR TEMPO ---
     private fun getTempoRelativo(dataString: String): String {
         try {
             val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -125,26 +146,24 @@ class FriendsAdapter(
         }
     }
 
-    // --- FUNÇÃO PARA DESENHAR A BOLA COM LETRA ---
     private fun desenharAvatar(nome: String): Bitmap {
         val size = 120
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val paint = Paint()
 
-        // 1. Fundo Circular
         paint.color = Color.parseColor("#444444")
         paint.style = Paint.Style.FILL
         paint.isAntiAlias = true
         canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
 
-        // 2. Letra
         paint.color = Color.WHITE
         paint.textSize = 60f
         paint.textAlign = Paint.Align.CENTER
         paint.typeface = Typeface.DEFAULT_BOLD
 
         val xPos = size / 2f
+        // CORREÇÃO: Usar 'size' em vez de 'height'
         val yPos = (size / 2f) - ((paint.descent() + paint.ascent()) / 2)
         val letra = if (nome.isNotEmpty()) nome.first().toString().uppercase() else "?"
 

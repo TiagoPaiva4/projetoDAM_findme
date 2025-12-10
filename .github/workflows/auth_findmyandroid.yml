@@ -3,7 +3,7 @@ name: Deploy to Azure (via Publish Profile)
 on:
   push:
     branches:
-      - ver-utilizadores
+      - grupos
 
 jobs:
   build-and-deploy:
