@@ -3,8 +3,8 @@ package pt.ipt.projetodam_findme
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.res.ColorStateList // Importante para mudar a cor
-import android.graphics.Color             // Importante para ler as cores Hex
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.location.Geocoder
 import android.os.Bundle
 import android.util.Log
@@ -118,10 +118,6 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         // 5. Configurar Switch de Partilha
-        // =====================================================================
-        // ALTERAÇÃO: MUDAR COR (VERDE/VERMELHO)
-        // =====================================================================
-
         // Função auxiliar local para mudar a cor
         fun atualizarCorSwitch(checked: Boolean) {
             val corHex = if (checked) "#34C759" else "#FF3B30" // Verde ou Vermelho
@@ -131,7 +127,7 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         // Definir estado inicial
         switchLocation.isChecked = isSharing
         tvShareStatus.text = if (isSharing) "Ativa" else "Inativa"
-        atualizarCorSwitch(isSharing) // Aplica a cor logo ao abrir
+        atualizarCorSwitch(isSharing)
 
         // Listener de mudança
         switchLocation.setOnCheckedChangeListener { _, isChecked ->
@@ -157,13 +153,14 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
                 Toast.makeText(this, "Partilha de localização parada", Toast.LENGTH_SHORT).show()
             }
         }
-        // =====================================================================
 
         // 6. Configurar Lista de Pedidos
         recyclerRequests.layoutManager = LinearLayoutManager(this)
+
+        // CORREÇÃO: Usar "accept" e "reject" em vez de "accepted"/"rejected"
         adapter = RequestsAdapter(requestsList,
-            onAccept = { req -> gerirPedido(req, "accepted") },
-            onReject = { req -> gerirPedido(req, "rejected") }
+            onAccept = { req -> gerirPedido(req, "accept") },
+            onReject = { req -> gerirPedido(req, "reject") }
         )
         recyclerRequests.adapter = adapter
 
@@ -289,14 +286,19 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val postRequest = object : StringRequest(Method.POST, url,
             {
-                val msg = if (action == "accepted") "Pedido aceite" else "Pedido recusado"
+                // Verifica a ação correta para a mensagem
+                val msg = if (action == "accept") "Pedido aceite" else "Pedido recusado"
                 Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
                 carregarPedidos()
             },
             { Toast.makeText(this, "Erro ao processar", Toast.LENGTH_SHORT).show() }
         ) {
             override fun getParams(): MutableMap<String, String> {
-                return mutableMapOf("request_id" to request.id.toString(), "action" to action)
+                // CORREÇÃO: Usar "id_friendship" em vez de "request_id"
+                return mutableMapOf(
+                    "id_friendship" to request.id.toString(),
+                    "action" to action
+                )
             }
         }
         queue.add(postRequest)
