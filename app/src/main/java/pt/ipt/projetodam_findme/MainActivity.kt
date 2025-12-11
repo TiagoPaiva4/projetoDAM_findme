@@ -338,23 +338,47 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun startLocationUpdates() {
-        // 1. Verificar se temos permissão (Segurança)
+        // 1. Verificar Permissões
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // Se não tiver permissão, não faz nada (ou pede permissão noutro sítio)
             return
         }
 
-        // 2. Lógica de UI: Mostrar o Ponto Azul no Mapa
-        // Esta função já existe no teu código e ativa a camada "My Location" do Google Maps
+        // 2. Iniciar o Serviço (Responsável por ENVIAR para a BD em segundo plano)
+        val intent = Intent(this, LocationService::class.java)
+        intent.putExtra("USER_ID", userId)
+        ContextCompat.startForegroundService(this, intent)
+
+        // 3. Ativar o Ponto Azul no Mapa
         enableBlueDot()
 
-        // 3. Lógica de Backend: Iniciar o Serviço de Envio
-        // Isto garante que a localização continua a ser enviada mesmo com a app fechada/bloqueada
-        val intent = Intent(this, LocationService::class.java)
-        intent.putExtra("USER_ID", userId) // Passamos o ID para o serviço saber quem é
+        // 4. Pedir atualizações LOCAIS para a UI (Para a lista de amigos funcionar)
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).apply {
+            setMinUpdateIntervalMillis(2000)
+        }.build()
 
-        // Inicia o serviço em modo Foreground
-        ContextCompat.startForegroundService(this, intent)
+        val uiLocationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { currentLocation ->
+                    // Guardar a localização atual para calcular distâncias
+                    lastSentLocation = currentLocation
+
+                    // Se for a primeira localização, focar o mapa no utilizador
+                    if (isFirstLocation && ::mMap.isInitialized) {
+                        isFirstLocation = false
+                        val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
+                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 15f))
+                    }
+
+                    // Atualizar as listas de amigos/grupos com as novas distâncias
+                    if (currentTab == Tab.PEOPLE) buscarAmigos()
+                    if (currentTab == Tab.GROUPS) buscarGrupos()
+
+                    // NOTA: Não chamamos enviarLocalizacao() aqui porque o LocationService já está a fazer isso!
+                }
+            }
+        }
+
+        fusedLocationClient.requestLocationUpdates(locationRequest, uiLocationCallback, Looper.getMainLooper())
     }
 
     private fun enviarLocalizacao(userId: String, latitude: Double, longitude: Double) {

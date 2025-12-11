@@ -18,7 +18,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-// Modelo de Dados (Mantenha inalterado)
+// Certifica-te que esta classe de dados corresponde ao que usas na MainActivity
+// Se já tiveres a classe Friend noutro ficheiro, podes apagar esta definição aqui.
 data class Friend(
     val id: Int,
     val name: String,
@@ -37,7 +38,6 @@ class FriendsAdapter(
 ) : RecyclerView.Adapter<FriendsAdapter.FriendViewHolder>() {
 
     class FriendViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        // IDs CORRIGIDOS para corresponderem ao item_person_modern.xml
         val imgAvatar: ImageView = itemView.findViewById(R.id.imgAvatar)
         val txtName: TextView = itemView.findViewById(R.id.txtName)
         val txtStatus: TextView = itemView.findViewById(R.id.txtStatus)
@@ -46,6 +46,7 @@ class FriendsAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FriendViewHolder {
+        // Assegura que estamos a usar o layout correto 'item_person_modern'
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_person_modern, parent, false)
         return FriendViewHolder(view)
     }
@@ -57,14 +58,15 @@ class FriendsAdapter(
         // 1. Nome
         holder.txtName.text = friend.name
 
-        // 2. Avatar (Letra Inicial)
+        // 2. Avatar (Letra Inicial desenhada dinamicamente)
         holder.imgAvatar.setImageBitmap(desenharAvatar(friend.name))
 
-        // 3. Status/Tempo/Cidade
+        // 3. Status Complexo (Cidade + Tempo)
+        // Nota: O Geocoder pode ser lento na UI thread, mas mantive a tua lógica original
         val tempoTexto = getTempoRelativo(friend.lastUpdate)
         val cidade = obterCidade(context, friend.latitude, friend.longitude)
 
-        val statusText = if (friend.distanceMeters <= 0f) {
+        val statusText = if (friend.distanceMeters <= 0f && friend.latitude == 0.0) {
             "Localização indisponível"
         } else if (cidade.isNotEmpty()) {
             "$cidade • $tempoTexto"
@@ -73,29 +75,31 @@ class FriendsAdapter(
         }
         holder.txtStatus.text = statusText
 
-        // 4. Distância
+        // 4. Distância Formatada (km ou m)
         if (friend.distanceMeters > 0f) {
             val distanceKm = friend.distanceMeters / 1000
             val formattedDistance = if (distanceKm < 1) {
                 "${friend.distanceMeters.toInt()} m"
             } else {
-                String.format("%.1f km", distanceKm)
+                String.format(Locale.US, "%.1f km", distanceKm)
             }
             holder.txtDistance.text = formattedDistance
         } else {
+            // Se a distância for 0 ou inválida, esconde ou limpa o texto
             holder.txtDistance.text = ""
         }
 
-        // Lógica de clique para abrir o mapa
+        // 5. Clique no item (para abrir o mapa)
         holder.itemView.setOnClickListener { clickListener(friend) }
 
-        // LÓGICA DO BOTÃO DE REMOÇÃO
+        // 6. Botão de Remover (Lógica de Grupos)
+        // Só mostra o botão se formos o criador do grupo e o amigo não for nós próprios
         val canRemove = removeListener != null && currentUserId == groupCreatorId && friend.id != currentUserId
 
         if (canRemove) {
             holder.btnRemove.visibility = View.VISIBLE
             holder.btnRemove.setOnClickListener {
-                removeListener.invoke(friend)
+                removeListener?.invoke(friend)
             }
         } else {
             holder.btnRemove.visibility = View.GONE
@@ -107,23 +111,28 @@ class FriendsAdapter(
     // --- FUNÇÕES AUXILIARES ---
 
     private fun obterCidade(context: Context, lat: Double, lon: Double): String {
+        if (lat == 0.0 && lon == 0.0) return ""
         return try {
             val geocoder = Geocoder(context, Locale.getDefault())
+            // Nota: getFromLocation pode bloquear a UI. Idealmente seria feito em background.
+            @Suppress("DEPRECATION")
             val addresses = geocoder.getFromLocation(lat, lon, 1)
 
             if (!addresses.isNullOrEmpty()) {
                 val address = addresses[0]
+                // Tenta obter Localidade, se falhar tenta Área Administrativa
                 address.locality ?: address.subAdminArea ?: address.adminArea ?: ""
             } else {
                 ""
             }
         } catch (e: Exception) {
-            ""
+            "" // Em caso de erro (sem internet, etc), retorna vazio sem crashar
         }
     }
 
     private fun getTempoRelativo(dataString: String): String {
         try {
+            // Ajusta o formato se a tua BD enviar diferente (ex: com T ou timezone)
             val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
             val past = format.parse(dataString)
             val now = Date()
@@ -131,6 +140,9 @@ class FriendsAdapter(
             if (past == null) return "Desconhecido"
 
             val diffMillis = now.time - past.time
+            // Evitar tempos negativos se o relógio do servidor estiver desalinhado
+            if (diffMillis < 0) return "Agora"
+
             val minutes = TimeUnit.MILLISECONDS.toMinutes(diffMillis)
             val hours = TimeUnit.MILLISECONDS.toHours(diffMillis)
             val days = TimeUnit.MILLISECONDS.toDays(diffMillis)
@@ -152,18 +164,19 @@ class FriendsAdapter(
         val canvas = Canvas(bitmap)
         val paint = Paint()
 
+        // Fundo do círculo
         paint.color = Color.parseColor("#444444")
         paint.style = Paint.Style.FILL
         paint.isAntiAlias = true
         canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
 
+        // Texto (Inicial do nome)
         paint.color = Color.WHITE
         paint.textSize = 60f
         paint.textAlign = Paint.Align.CENTER
         paint.typeface = Typeface.DEFAULT_BOLD
 
         val xPos = size / 2f
-        // CORREÇÃO: Usar 'size' em vez de 'height'
         val yPos = (size / 2f) - ((paint.descent() + paint.ascent()) / 2)
         val letra = if (nome.isNotEmpty()) nome.first().toString().uppercase() else "?"
 
