@@ -304,6 +304,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         } else {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), locationPermissionRequestCode)
         }
+
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {

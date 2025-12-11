@@ -135,13 +135,27 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Listener de mudança
         switchLocation.setOnCheckedChangeListener { _, isChecked ->
+            // 1. Guardar a preferência
             sharedPreferences.edit().putBoolean("share_location", isChecked).apply()
 
+            // 2. Atualizar UI (Texto e Cor)
             val status = if (isChecked) "Ativa" else "Inativa"
             tvShareStatus.text = status
-
-            // Muda a cor dinamicamente
             atualizarCorSwitch(isChecked)
+
+            // 3. Lógica para LIGAR ou DESLIGAR o Serviço
+            val serviceIntent = Intent(this, pt.ipt.projetodam_findme.services.LocationService::class.java)
+
+            if (isChecked) {
+                // SE LIGADO: Inicia o serviço
+                serviceIntent.putExtra("USER_ID", userId)
+                androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent)
+                Toast.makeText(this, "Partilha de localização iniciada", Toast.LENGTH_SHORT).show()
+            } else {
+                // SE DESLIGADO: Mata o serviço imediatamente
+                stopService(serviceIntent)
+                Toast.makeText(this, "Partilha de localização parada", Toast.LENGTH_SHORT).show()
+            }
         }
         // =====================================================================
 
