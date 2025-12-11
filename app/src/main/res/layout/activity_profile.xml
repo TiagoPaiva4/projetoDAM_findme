@@ -38,64 +38,94 @@
                 android:layout_weight="1"
                 android:minHeight="400dp"/>
 
-            <!-- CARTÃO 1: LOCALIZAÇÃO (COM SETA NO CANTO) -->
+            <!-- CARTÃO 1: LOCALIZAÇÃO ESTILO NOVO -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="14dp"
+                app:cardCornerRadius="20dp"
                 app:cardElevation="4dp"
                 android:layout_marginBottom="12dp">
 
-                <!-- FrameLayout permite sobrepor a seta no canto direito -->
                 <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content">
 
-                    <!-- Conteúdo Original do Cartão -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical">
+                        android:orientation="vertical"
+                        android:padding="20dp">
 
+                        <!-- TÍTULO GRANDE -->
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="A minha localização"
+                            android:textColor="#000000"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp"/>
+
+                        <!-- ZONA DA MORADA COM ÍCONE -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="16dp">
+                            android:orientation="horizontal"
+                            android:gravity="top">
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Minha Localização Atual"
-                                android:textColor="#8E8E93"
-                                android:textSize="12sp"
-                                android:textStyle="bold"
-                                android:layout_marginBottom="4dp"/>
+                            <!-- Ícone Pin -->
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:src="@drawable/ic_pin_blue"
+                                android:layout_marginTop="2dp"
+                                android:layout_marginEnd="8dp"/>
 
-                            <TextView
-                                android:id="@+id/tvMyAddress"
-                                android:layout_width="match_parent"
+                            <!-- Textos da Morada -->
+                            <LinearLayout
+                                android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:text="A carregar..."
-                                android:textColor="#000000"
-                                android:textSize="18sp"
-                                android:textStyle="bold"
-                                android:paddingEnd="30dp"/> <!-- Padding extra para o texto não bater na seta -->
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <!-- RUA (Mais escuro) -->
+                                <TextView
+                                    android:id="@+id/tvStreet"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="A carregar rua..."
+                                    android:textColor="#404040"
+                                    android:textSize="15sp"
+                                    android:paddingEnd="30dp"/>
+
+                                <!-- CP e CIDADE (Mais claro e pequeno) -->
+                                <TextView
+                                    android:id="@+id/tvCityZip"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="A carregar cidade..."
+                                    android:textColor="#8E8E93"
+                                    android:textSize="14sp"
+                                    android:layout_marginTop="2dp"
+                                    android:paddingEnd="30dp"/>
+                            </LinearLayout>
                         </LinearLayout>
 
+                        <!-- SEPARADOR -->
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"
-                            android:layout_marginStart="16dp"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginBottom="12dp"
                             android:background="#E5E5EA"/>
 
+                        <!-- SWITCH PARTILHA -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
-                            android:orientation="horizontal"
-                            android:padding="16dp">
+                            android:orientation="horizontal">
 
                             <LinearLayout
                                 android:layout_width="0dp"
@@ -106,7 +136,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Partilhar Localização"
+                                    android:text="Partilha de localização"
                                     android:textColor="#000000"
                                     android:textSize="16sp"
                                     android:textStyle="bold" />
@@ -115,7 +145,7 @@
                                     android:id="@+id/tvShareStatus"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Visível para amigos"
+                                    android:text="Ativa"
                                     android:textColor="#8E8E93"
                                     android:textSize="12sp"
                                     android:layout_marginTop="2dp"/>
@@ -128,9 +158,28 @@
                                 android:checked="true"
                                 app:trackTint="#34C759"/>
                         </LinearLayout>
+
+                        <!-- SEPARADOR -->
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginBottom="6dp"
+                            android:background="#E5E5EA"/>
+
+                        <!-- TEXTO FUNDO "Última atualização" -->
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Última atualização: agora"
+                            android:textColor="#AEAEB2"
+                            android:textSize="11sp"
+                            android:gravity="center"
+                            android:layout_marginTop="12dp"/>
+
                     </LinearLayout>
 
-                    <!-- A SETA (Posicionada no Topo Direito) -->
+                    <!-- A SETA (Mantida no Topo Direito) -->
                     <ImageView
                         android:id="@+id/btnExpandMore"
                         android:layout_width="48dp"
@@ -141,9 +190,9 @@
                         android:clickable="true"
                         android:focusable="true"
                         android:padding="12dp"
-                        android:layout_marginTop="4dp"
-                        android:layout_marginEnd="4dp"
-                        app:tint="#8E8E93" /> <!-- Cor cinzenta para ver no fundo branco -->
+                        android:layout_marginTop="12dp"
+                        android:layout_marginEnd="8dp"
+                        app:tint="#8E8E93" />
 
                 </FrameLayout>
             </androidx.cardview.widget.CardView>
@@ -204,7 +253,7 @@
                     android:layout_height="50dp"
                     android:text="Terminar Sessão"
                     android:textColor="#FF3B30"
-                    android:backgroundTint="#F2F2F7"
+                    android:backgroundTint="#FFFFFF"
                     app:cornerRadius="12dp"
                     android:layout_marginBottom="24dp"/>
 

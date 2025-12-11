@@ -34,7 +34,11 @@ import java.util.Locale
 class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var userId: String
-    private lateinit var tvMyAddress: TextView
+
+    // Novas variáveis para a morada dividida
+    private lateinit var tvStreet: TextView
+    private lateinit var tvCityZip: TextView
+
     private lateinit var switchLocation: MaterialSwitch
     private lateinit var tvShareStatus: TextView
     private lateinit var recyclerRequests: RecyclerView
@@ -50,9 +54,7 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_profile)
 
-        // =========================================================================
-        // Ajuste da Navbar (Mantido)
-        // =========================================================================
+        // Ajuste da Navbar (Bottom Insets)
         val navBarBottom = findViewById<LinearLayout>(R.id.navBarBottom)
         ViewCompat.setOnApplyWindowInsetsListener(navBarBottom) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -71,7 +73,10 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         val isSharing = sharedPreferences.getBoolean("share_location", true)
 
         // 3. Vincular Views
-        tvMyAddress = findViewById(R.id.tvMyAddress)
+        // ATENÇÃO: Mudámos de tvMyAddress para estas duas
+        tvStreet = findViewById(R.id.tvStreet)
+        tvCityZip = findViewById(R.id.tvCityZip)
+
         switchLocation = findViewById(R.id.switchLocation)
         tvShareStatus = findViewById(R.id.tvShareStatus)
         recyclerRequests = findViewById(R.id.recyclerRequests)
@@ -83,29 +88,23 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         // 4. Lógica de Expandir/Recolher
         btnExpandMore.setOnClickListener {
             if (layoutMoreOptions.visibility == View.VISIBLE) {
-                // Esconder
                 layoutMoreOptions.visibility = View.GONE
-                // Rodar seta de volta para baixo (animação suave)
                 btnExpandMore.animate().rotation(0f).setDuration(300).start()
             } else {
-                // Mostrar
                 layoutMoreOptions.visibility = View.VISIBLE
-                // Rodar seta para cima (animação suave)
                 btnExpandMore.animate().rotation(180f).setDuration(300).start()
-
-                // Opcional: Fazer scroll para baixo para ver o conteúdo novo
-                // (Se necessário, mas o user costuma fazer scroll manualmente)
             }
         }
 
         // 5. Configurar Switch de Partilha
         switchLocation.isChecked = isSharing
-        tvShareStatus.text = if (isSharing) "Visível para amigos" else "Localização oculta"
+        tvShareStatus.text = if (isSharing) "Ativa" else "Inativa"
+
         switchLocation.setOnCheckedChangeListener { _, isChecked ->
             sharedPreferences.edit().putBoolean("share_location", isChecked).apply()
-            val status = if (isChecked) "Visível para amigos" else "Localização oculta"
+            val status = if (isChecked) "Ativa" else "Inativa"
             tvShareStatus.text = status
-            Toast.makeText(this, status, Toast.LENGTH_SHORT).show()
+            // Toast.makeText(this, status, Toast.LENGTH_SHORT).show() // Opcional
         }
 
         // 6. Configurar Lista de Pedidos
@@ -156,7 +155,8 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun obterMoradaAtual() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            tvMyAddress.text = "Sem permissão"
+            tvStreet.text = "Sem permissão"
+            tvCityZip.text = ""
             return
         }
 
@@ -168,14 +168,35 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
                     val addresses = geocoder.getFromLocation(it.latitude, it.longitude, 1)
 
                     if (!addresses.isNullOrEmpty()) {
-                        val rua = addresses[0].thoroughfare ?: ""
-                        val cidade = addresses[0].locality ?: addresses[0].subAdminArea ?: ""
-                        tvMyAddress.text = if (rua.isNotEmpty()) "$rua, $cidade" else cidade
+                        val address = addresses[0]
+
+                        // Extrair partes da morada
+                        val rua = address.thoroughfare ?: "Rua desconhecida"
+                        val numero = address.subThoroughfare ?: "" // Número da porta
+                        val cp = address.postalCode ?: ""
+                        val cidade = address.locality ?: address.subAdminArea ?: ""
+                        val pais = address.countryName ?: ""
+
+                        // LINHA 1: Rua + Número
+                        val linha1 = if (numero.isNotEmpty()) "$rua, $numero" else rua
+                        tvStreet.text = linha1
+
+                        // LINHA 2: CP + Cidade + País
+                        // Ex: 1250-141 Lisboa, Portugal
+                        val linha2Builder = StringBuilder()
+                        if (cp.isNotEmpty()) linha2Builder.append("$cp ")
+                        if (cidade.isNotEmpty()) linha2Builder.append("$cidade")
+                        if (pais.isNotEmpty()) linha2Builder.append(", $pais")
+
+                        tvCityZip.text = linha2Builder.toString()
+
                     } else {
-                        tvMyAddress.text = "Localização desconhecida"
+                        tvStreet.text = "Localização desconhecida"
+                        tvCityZip.text = ""
                     }
                 } catch (e: Exception) {
-                    tvMyAddress.text = "Erro ao obter morada"
+                    tvStreet.text = "Erro ao obter morada"
+                    tvCityZip.text = ""
                 }
             }
         }
