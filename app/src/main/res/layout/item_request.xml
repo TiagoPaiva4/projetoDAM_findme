@@ -1,43 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:padding="10dp"
-    android:background="#1C1C1E">
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp"
+    android:background="@android:color/transparent">
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:layout_marginEnd="16dp">
 
         <TextView
-            android:id="@+id/txtReqName"
+            android:id="@+id/tvRequestName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Nome da Pessoa"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"/>
+            android:textColor="#000000"
+            android:textSize="16sp"
+            android:ellipsize="end"
+            android:maxLines="1"/>
 
         <TextView
-            android:id="@+id/txtReqEmail"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="quer ver a tua localização"
-            android:textColor="#98989D"
-            android:textSize="12sp"/>
+            android:text="enviou um pedido de amizade"
+            android:textColor="#8E8E93"
+            android:textSize="13sp"
+            android:ellipsize="end"
+            android:maxLines="1"/>
     </LinearLayout>
 
-    <Button
-        android:id="@+id/btnAccept"
-        android:layout_width="80dp"
-        android:layout_height="40dp"
-        android:text="Aceitar"
-        android:textSize="12sp"
-        android:backgroundTint="#0A84FF"
-        android:textColor="#FFF"/>
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@+id/btnReject"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/bg_circle_button"
+            android:backgroundTint="#FF3B30"
+            android:src="@drawable/ic_close"
+            app:tint="#FFFFFF"
+            android:padding="10dp"
+            android:scaleType="fitCenter"
+            android:layout_marginEnd="12dp"
+            android:contentDescription="Recusar pedido" />
+
+        <ImageButton
+            android:id="@+id/btnAccept"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/bg_circle_button"
+            android:backgroundTint="#34C759"
+            android:src="@drawable/ic_check"
+            app:tint="#FFFFFF"
+            android:padding="8dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="Aceitar pedido" />
+
+    </LinearLayout>
 
 </LinearLayout>

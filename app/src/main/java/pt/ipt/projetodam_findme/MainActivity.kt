@@ -1,7 +1,6 @@
 package pt.ipt.projetodam_findme
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -22,7 +21,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.Request
@@ -92,7 +90,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // NOVO: Activity Result Launcher para Detalhes do Grupo
+    // Activity Result Launcher para Detalhes do Grupo
     private val groupDetailsResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -103,7 +101,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -147,27 +144,28 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         recyclerFriends = findViewById(R.id.recyclerFriends)
         recyclerFriends.layoutManager = LinearLayoutManager(this)
 
-        // Adapter de Amigos (Defeito)
-        // CORRIGIDO: Passar currentUserId explicitamente e usar argumentos nomeados
+        // Adapter de Amigos
         adapter = FriendsAdapter(
             friendsList = friendsList,
             clickListener = { friend ->
-                val pos = LatLng(friend.latitude, friend.longitude)
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
-                sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+                // CORREÇÃO: Só mexer no mapa se ele estiver pronto
+                if (::mMap.isInitialized) {
+                    val pos = LatLng(friend.latitude, friend.longitude)
+                    mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
+                    sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+                }
             },
-            currentUserId = userId.toInt() // <-- Passa o ID do utilizador logado (Necessário para o construtor)
+            currentUserId = userId.toInt()
         )
         recyclerFriends.adapter = adapter
 
         // Adapter de Grupos
         groupsAdapter = GroupsAdapter(groupsList) { group ->
-            // NOVO: Usa o groupDetailsResultLauncher
             val intent = Intent(this, GroupDetailsActivity::class.java).apply {
                 putExtra("GROUP_ID", group.id)
                 putExtra("GROUP_NAME", group.name)
             }
-            groupDetailsResultLauncher.launch(intent) // <--- ALTERADO
+            groupDetailsResultLauncher.launch(intent)
         }
 
         // Botão + (Add/Create)
@@ -175,7 +173,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         btnAddFriend.setOnClickListener {
             handleAddButtonClick()
         }
-
 
         // Inicializar Views
         tabPessoas = findViewById(R.id.tabPessoas)
@@ -229,11 +226,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun handleAddButtonClick() {
         when (currentTab) {
             Tab.PEOPLE -> {
-                // Abre a Activity para Adicionar Amigo
                 startActivity(Intent(this, AddFriendActivity::class.java))
             }
             Tab.GROUPS -> {
-                // Abre a Activity para Criar Grupo (usando o launcher para detetar o sucesso)
                 val intent = Intent(this, CreateGroupActivity::class.java)
                 createGroupResultLauncher.launch(intent)
             }
@@ -254,7 +249,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val corAtiva = Color.WHITE
 
         for ((aba, indicador) in listaAbas) {
-            // A ordem no XML é: 0=ImageView(Gone), 1=TextView, 2=View(Indicador)
             val icon = aba.getChildAt(0) as ImageView
             val text = aba.getChildAt(1) as TextView
 
@@ -315,6 +309,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == locationPermissionRequestCode && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startLocationUpdates()
+            // CORREÇÃO: Só chamar enableBlueDot se o mapa existir
             if (::mMap.isInitialized) enableBlueDot()
         }
     }
@@ -350,18 +345,26 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { currentLocation ->
-                    if (isFirstLocation) {
-                        isFirstLocation = false
-                        val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
-                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 6f))
-                        if (currentTab == Tab.PEOPLE) buscarAmigos()
-                        if (currentTab == Tab.GROUPS) buscarGrupos()
+
+                    // CORREÇÃO: Verificar se mMap está inicializado antes de o usar
+                    if (::mMap.isInitialized) {
+                        if (isFirstLocation) {
+                            isFirstLocation = false
+                            val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
+                            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 6f))
+                            if (currentTab == Tab.PEOPLE) buscarAmigos()
+                            if (currentTab == Tab.GROUPS) buscarGrupos()
+                        }
                     }
 
                     if (lastSentLocation == null || lastSentLocation!!.distanceTo(currentLocation) >= MIN_DISTANCE_METERS) {
                         lastSentLocation = currentLocation
                         enviarLocalizacao(userId, currentLocation.latitude, currentLocation.longitude)
-                        if (currentTab == Tab.PEOPLE) buscarAmigos()
+
+                        // CORREÇÃO: Só atualizar amigos se o mapa estiver pronto
+                        if (currentTab == Tab.PEOPLE && ::mMap.isInitialized) {
+                            buscarAmigos()
+                        }
                     }
                 }
             }
@@ -372,6 +375,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun enviarLocalizacao(userId: String, latitude: Double, longitude: Double) {
+        // NOVA VERIFICAÇÃO: Se o utilizador desligou a partilha, não envia nada
+        val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
+        if (!sharedPreferences.getBoolean("share_location", true)) {
+            return
+        }
+
+
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/update_location.php"
         val queue = Volley.newRequestQueue(this)
 
@@ -389,6 +399,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun buscarAmigos() {
         if (lastSentLocation == null) return
 
+        // CORREÇÃO: Se o mapa não existe, sai logo para não dar erro
+        if (!::mMap.isInitialized) return
+
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_users_locations.php?user_id=$userId"
         val queue = Volley.newRequestQueue(this)
 
@@ -396,9 +409,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             try {
                 if (currentTab != Tab.PEOPLE) return@JsonObjectRequest
 
+                // CORREÇÃO: Revalidar o mapa antes de tentar adicionar marcadores
+                if (!::mMap.isInitialized) return@JsonObjectRequest
+
                 val usersArray = response.getJSONArray("users")
                 friendsList.clear()
-                markersMap.values.forEach { it.remove() } // Remove todos os marcadores antigos
+
+                // Limpeza segura dos marcadores
+                markersMap.values.forEach { it.remove() }
                 markersMap.clear()
 
                 for (i in 0 until usersArray.length()) {
@@ -416,6 +434,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         .title(name)
                         .icon(criarIconeCircular(name))
                         .anchor(0.5f, 0.5f)
+
+                    // Adicionar marcador ao mapa
                     val marker = mMap.addMarker(markerOptions)
                     if (marker != null) markersMap[friendId] = marker
 

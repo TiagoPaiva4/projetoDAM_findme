@@ -1,210 +1,358 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/profileCoordinator"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#000000">
 
-    <!-- 1. MAPA -->
+    <!-- MAPA DE FUNDO -->
+    <!-- (ID mantido: mapProfile) -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/mapProfile"
         android:name="com.google.android.gms.maps.SupportMapFragment"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
-
-    <!-- 2. PAINEL ÚNICO FLUTUANTE -->
-    <LinearLayout
-        android:id="@+id/bottomSheetProfile"
-        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:background="@android:color/transparent"
-        android:elevation="10dp"
-        app:behavior_peekHeight="240dp"
-        app:behavior_hideable="false"
-        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+        android:layout_marginBottom="85dp" />
 
-        <!-- A. PEGA (FLUTUANTE) -->
+    <!-- CONTEÚDO COM SCROLL -->
+    <!-- ADICIONADO ID: nestedScrollView -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        app:layout_constraintBottom_toTopOf="@+id/navBarBottom"
+        app:layout_constraintTop_toTopOf="parent">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
-            android:paddingBottom="8dp">
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="20dp">
+
+            <!-- ESPAÇO TRANSPARENTE (ÁREA DE TOQUE DO MAPA) -->
+            <!-- ADICIONADO ID: viewMapTouch -->
             <View
-                android:layout_width="75dp"
-                android:layout_height="5dp"
-                android:background="#8E8E93"
-                android:backgroundTint="#8E8E93"/>
-        </LinearLayout>
-
-        <!-- B. CABEÇALHO COM ABAS (Fundo Claro) -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_glass_header"
-            android:paddingTop="15dp"
-            android:paddingBottom="5dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingHorizontal="5dp">
-
-                <!-- Aba Pessoas (Inativa) -->
-                <LinearLayout
-                    android:id="@+id/tabPessoas"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:background="?attr/selectableItemBackgroundBorderless">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Pessoas"
-                        android:textSize="14sp"
-                        android:textColor="#AAAAAA"
-                        android:layout_marginTop="2dp"/>
-                    <View
-                        android:layout_width="40dp"
-                        android:layout_height="2dp"
-                        android:background="#FFFFFF"
-                        android:layout_marginTop="8dp"
-                        android:visibility="invisible"/>
-                </LinearLayout>
-
-                <!-- Aba Grupos (Inativa) -->
-                <LinearLayout
-                    android:id="@+id/tabGrupos"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:background="?attr/selectableItemBackgroundBorderless">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Grupos"
-                        android:textSize="14sp"
-                        android:textColor="#AAAAAA"
-                        android:layout_marginTop="2dp"/>
-                    <View
-                        android:layout_width="40dp"
-                        android:layout_height="2dp"
-                        android:background="#FFFFFF"
-                        android:layout_marginTop="8dp"
-                        android:visibility="invisible"/>
-                </LinearLayout>
-
-                <!-- Aba Círculos (Inativa) -->
-                <LinearLayout
-                    android:id="@+id/tabCirculos"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:background="?attr/selectableItemBackgroundBorderless">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Círculos"
-                        android:textSize="14sp"
-                        android:textColor="#AAAAAA"
-                        android:layout_marginTop="2dp"/>
-                    <View
-                        android:layout_width="40dp"
-                        android:layout_height="2dp"
-                        android:background="#FFFFFF"
-                        android:layout_marginTop="8dp"
-                        android:visibility="invisible"/>
-                </LinearLayout>
-
-                <!-- Aba EU (ATIVA - Destaque Branco e Traço) -->
-                <LinearLayout
-                    android:id="@+id/tabEu"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:background="?attr/selectableItemBackgroundBorderless">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Eu"
-                        android:textSize="14sp"
-                        android:textColor="#FFFFFF"
-                        android:textStyle="bold"
-                        android:layout_marginTop="2dp"/>
-                    <!-- TRAÇO VISÍVEL -->
-                    <View
-                        android:layout_width="40dp"
-                        android:layout_height="2dp"
-                        android:background="#FFFFFF"
-                        android:layout_marginTop="8dp"
-                        android:visibility="visible"/>
-                </LinearLayout>
-
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- C. CORPO DO PERFIL (Fundo Escuro) -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:background="@drawable/bg_glass_body"
-            android:padding="20dp">
-
-            <!-- Informação de Localização -->
-            <TextView
-                android:id="@+id/txtLocation"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="A obter localização..."
-                android:textColor="#BBBBBB"
-                android:textSize="14sp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="30dp"/>
-
-            <!-- Título Pedidos -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Pedidos de Amizade"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
-                android:textSize="18sp"
-                android:layout_marginBottom="10dp"/>
-
-            <!-- Lista de Pedidos -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerRequests"
+                android:id="@+id/viewMapTouch"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                android:layout_marginBottom="20dp"/>
+                android:minHeight="400dp"/>
 
-            <!-- Botão de Sair -->
-            <Button
-                android:id="@+id/btnLogout"
+            <!-- (O resto do layout mantém-se igual...) -->
+            <!-- CARTÃO 1: LOCALIZAÇÃO -->
+            <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:text="Terminar Sessão"
-                android:textColor="#FF3B30"
-                android:textStyle="bold"
-                android:backgroundTint="#2C2C2E"
-                app:cornerRadius="12dp"/>
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="4dp"
+                android:layout_marginBottom="12dp">
 
+                <!-- ... Conteúdo do cartão ... -->
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="A minha localização"
+                            android:textColor="#000000"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp"/>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="top">
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:src="@drawable/ic_pin_blue"
+                                android:layout_marginTop="2dp"
+                                android:layout_marginEnd="8dp"/>
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:id="@+id/tvStreet"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="A carregar rua..."
+                                    android:textColor="#404040"
+                                    android:textSize="15sp"
+                                    android:paddingEnd="30dp"/>
+                                <TextView
+                                    android:id="@+id/tvCityZip"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="A carregar cidade..."
+                                    android:textColor="#8E8E93"
+                                    android:textSize="14sp"
+                                    android:layout_marginTop="2dp"
+                                    android:paddingEnd="30dp"/>
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginBottom="12dp"
+                            android:background="#E5E5EA"/>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Partilha de localização"
+                                    android:textColor="#000000"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:id="@+id/tvShareStatus"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Ativa"
+                                    android:textColor="#8E8E93"
+                                    android:textSize="12sp"
+                                    android:layout_marginTop="2dp"/>
+                            </LinearLayout>
+                            <com.google.android.material.materialswitch.MaterialSwitch
+                                android:id="@+id/switchLocation"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:checked="true"
+                                app:trackTint="#34C759"/>
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginBottom="6dp"
+                            android:background="#E5E5EA"/>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Última atualização: agora"
+                            android:textColor="#AEAEB2"
+                            android:textSize="11sp"
+                            android:gravity="center"
+                            android:layout_marginTop="12dp"/>
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/btnExpandMore"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_gravity="top|end"
+                        android:src="@drawable/ic_arrow_down"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:padding="12dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginEnd="8dp"
+                        app:tint="#8E8E93" />
+                </FrameLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- CONTENTOR ESCONDIDO (Pedidos + Logout) -->
+            <LinearLayout
+                android:id="@+id/layoutMoreOptions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="#FFFFFF"
+                    app:cardCornerRadius="14dp"
+                    app:cardElevation="4dp"
+                    android:layout_marginBottom="24dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingBottom="8dp">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Pedidos de amizade"
+                            android:textColor="#8E8E93"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:padding="16dp"/>
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginHorizontal="16dp"
+                            android:background="#E5E5EA"/>
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/recyclerRequests"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:nestedScrollingEnabled="false"
+                            tools:itemCount="2"
+                            tools:listitem="@layout/item_request"/>
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <Button
+                    android:id="@+id/btnLogout"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:text="Terminar Sessão"
+                    android:textColor="#FF3B30"
+                    android:backgroundTint="#FFFFFF"
+                    app:cornerRadius="12dp"
+                    android:layout_marginBottom="24dp"/>
+            </LinearLayout>
         </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
+    <!-- BARRA DE NAVEGAÇÃO (Mantida igual) -->
+    <LinearLayout
+        android:id="@+id/navBarBottom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="85dp"
+        android:background="#FFFFFF"
+        android:elevation="16dp"
+        android:paddingBottom="10dp"
+        android:paddingTop="10dp"
+        android:orientation="horizontal"
+        android:gravity="top"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:id="@+id/navPessoas"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconPessoas"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_people"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textPessoas"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pessoas"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/navGrupos"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconGrupos"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_groups"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textGrupos"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Grupos"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/navZona"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconZona"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_circles"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textZona"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Zona"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/navEu"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconEu"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_me"
+                app:tint="#3A8DDE"/>
+            <TextView
+                android:id="@+id/textEu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Eu"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#3A8DDE"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
     </LinearLayout>
-
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

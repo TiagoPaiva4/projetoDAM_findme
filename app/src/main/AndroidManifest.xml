@@ -2,8 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permissão necessária para ligar ao servidor -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:allowBackup="true"
@@ -17,7 +18,6 @@
         android:theme="@style/Theme.ProjetoDAM_findme"
         tools:targetApi="31">
 
-        <!-- Atividade Principal (Abre ao iniciar a app) -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -27,37 +27,37 @@
             </intent-filter>
         </activity>
 
-        <!-- Atividade de Login -->
         <activity
             android:name=".LoginActivity"
             android:exported="false" />
-
-        <!-- Atividade de Registo -->
         <activity
             android:name=".RegisterActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ProfileActivity"
             android:exported="false" />
 
         <activity
             android:name=".MapsActivity"
             android:exported="false" />
-
         <activity
-            android:name=".ProfileActivity"
+            android:name=".AddFriendActivity"
             android:exported="false" />
 
-        <activity android:name=".AddFriendActivity" />
-        <activity android:name=".CreateGroupActivity" />
-        <activity android:name=".GroupDetailsActivity" />
-        <activity android:name=".AddMemberActivity" />
+        <activity
+            android:name=".CreateGroupActivity"
+            android:exported="false" />
+        <activity
+            android:name=".GroupDetailsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".AddMemberActivity"
+            android:exported="false" />
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyCLlYCSi0ZVGpIIzVBT3YXntR5f6Xi0QG0" />
 
     </application>
-
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.INTERNET" />
 
 </manifest>
