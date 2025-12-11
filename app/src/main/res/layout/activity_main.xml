@@ -16,37 +16,6 @@
         android:layout_height="match_parent"
         android:layout_marginBottom="90dp"/>
 
-    <!-- 2. BARRA DE PESQUISA -->
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="50dp"
-        app:cardCornerRadius="10dp"
-        app:cardBackgroundColor="#FFFFFF"
-        app:cardElevation="4dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="15dp">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@android:drawable/ic_menu_search"
-                app:tint="#8E8E93"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Pesquisar Pessoas..."
-                android:textColor="#8E8E93"
-                android:layout_marginStart="10dp"/>
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
     <!-- 3. BOTTOM SHEET -->
     <LinearLayout
         android:id="@+id/bottomSheetFriends"
@@ -78,14 +47,14 @@
                 android:layout_marginTop="10dp"/>
         </LinearLayout>
 
-        <!-- Cabeçalho -->
+        <!-- Cabeçalho com a SETA -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingHorizontal="20dp"
-            android:layout_marginBottom="10dp">
+            android:layout_marginBottom="5dp">
 
             <TextView
                 android:layout_width="0dp"
@@ -96,16 +65,19 @@
                 android:textSize="22sp"
                 android:textStyle="bold"/>
 
+            <!-- NOVA SETA para abrir/fechar -->
             <ImageView
-                android:id="@+id/btnAddFriend"
+                android:id="@+id/btnToggleSheet"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
-                android:src="@drawable/ic_add_circle"
-                app:tint="#3A8DDE"
+                android:padding="4dp"
+                android:src="@drawable/ic_arrow_down"
+                app:tint="#8E8E93"
                 android:clickable="true"
                 android:focusable="true"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                tools:src="@android:drawable/ic_input_add"/>
+                tools:src="@android:drawable/arrow_up_float"/>
+            <!-- Nota: Certifica-te que tens um drawable ic_arrow_down ou usa um do sistema -->
         </LinearLayout>
 
         <!-- Lista -->
@@ -118,9 +90,38 @@
             android:clipToPadding="false"
             android:background="#FFFFFF"
             tools:listitem="@layout/item_person_modern"/>
+
+        <!-- NOVO BOTÃO DE ADICIONAR (No fundo da lista) -->
+        <LinearLayout
+            android:id="@+id/btnAddNewFriendAction"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="15dp"
+            android:background="#FFFFFF"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_add_circle"
+                app:tint="#3A8DDE"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Adicionar novo amigo"
+                android:textColor="#3A8DDE"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginStart="10dp"/>
+        </LinearLayout>
+
     </LinearLayout>
 
-    <!-- 4. BARRA DE NAVEGAÇÃO (Sem os indicators) -->
+    <!-- 4. BARRA DE NAVEGAÇÃO -->
     <LinearLayout
         android:id="@+id/navBarBottom"
         android:layout_width="match_parent"

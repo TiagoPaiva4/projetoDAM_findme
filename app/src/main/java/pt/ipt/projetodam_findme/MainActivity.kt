@@ -119,11 +119,40 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             windowInsets
         }
 
+        // --- Configuração Bottom Sheet ---
         val bottomSheet = findViewById<LinearLayout>(R.id.bottomSheetFriends)
         sheetBehavior = BottomSheetBehavior.from(bottomSheet)
         sheetBehavior.peekHeight = dpToPx(240)
         sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
 
+        // --- Lógica da Seta (Toggle) ---
+        val btnToggle = findViewById<ImageView>(R.id.btnToggleSheet)
+
+        // Listener para rodar a seta conforme o sheet sobe/desce
+        sheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
+            override fun onStateChanged(bottomSheet: View, newState: Int) {
+                // Opcional: ajustar seta se necessário no fim da animação
+            }
+            override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                // Roda a seta 180 graus conforme o progresso (0.0 a 1.0)
+                // Se slideOffset > 0 é expandido, < 0 é escondido.
+                // Ajustamos para rodar apenas quando está a expandir acima do peekHeight
+                if (slideOffset >= 0) {
+                    btnToggle.rotation = slideOffset * 180
+                }
+            }
+        })
+
+        // Clique na seta para abrir/fechar
+        btnToggle.setOnClickListener {
+            if (sheetBehavior.state == BottomSheetBehavior.STATE_EXPANDED) {
+                sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+            } else {
+                sheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+            }
+        }
+
+        // --- Configuração da Lista ---
         recyclerFriends = findViewById(R.id.recyclerFriends)
         recyclerFriends.layoutManager = LinearLayoutManager(this)
 
@@ -140,10 +169,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         )
         recyclerFriends.adapter = adapter
 
-        btnAddFriend = findViewById(R.id.btnAddFriend)
-        btnAddFriend.setOnClickListener {
+        // --- Novo Botão de Adicionar (Fundo da lista) ---
+        val btnAddNewFriendAction = findViewById<LinearLayout>(R.id.btnAddNewFriendAction)
+        btnAddNewFriendAction.setOnClickListener {
             handleAddButtonClick()
         }
+
+        // (Removemos a referência antiga ao btnAddFriend porque ele já não existe no XML)
 
         // Inicializar NavItems
         tabPessoas = findViewById(R.id.navPessoas)
@@ -151,13 +183,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         tabCirculos = findViewById(R.id.navZona)
         tabEu = findViewById(R.id.navEu)
 
-        // INDICADORES REMOVIDOS DE FINDVIEWBYID
-
         // Estado Inicial
         atualizarEstiloAbas(tabPessoas)
         currentTab = Tab.PEOPLE
 
-        // Listeners
+        // Listeners das Abas
         tabPessoas.setOnClickListener {
             atualizarEstiloAbas(tabPessoas)
             if (currentTab != Tab.PEOPLE) {
@@ -171,7 +201,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         tabGrupos.setOnClickListener {
             atualizarEstiloAbas(tabGrupos)
             currentTab = Tab.GROUPS
-            Toast.makeText(this, "Grupos selecionado", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, GroupsActivity::class.java)
+            startActivity(intent)
+            overridePendingTransition(0, 0)
         }
 
         tabCirculos.setOnClickListener {
@@ -278,13 +310,31 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
-        mMap.mapType = GoogleMap.MAP_TYPE_NORMAL
-        mMap.uiSettings.isZoomControlsEnabled = true
+
+        // 1. Mudar para Satélite Híbrido (Satélite + Nomes de ruas/cidades)
+        mMap.mapType = GoogleMap.MAP_TYPE_HYBRID
+
+        // 2. Remover todos os botões da Google
+        mMap.uiSettings.apply {
+            isZoomControlsEnabled = false    // Remove botões +/-
+            isMapToolbarEnabled = false      // Remove botões de "Abrir no Maps"
+            isCompassEnabled = false         // Remove a bússola
+            isMyLocationButtonEnabled = false // Remove o botão "Onde estou" (canto superior)
+            isRotateGesturesEnabled = true   // Permite rodar
+            isZoomGesturesEnabled = true     // Permite zoom com os dedos
+        }
+
+        // 3. Ajustar Padding (para o logo da Google não ficar escondido pela Navbar)
+        // Topo: 0, Fundo: 90dp (altura da navbar)
         mMap.setPadding(0, dpToPx(50), 0, dpToPx(90))
 
-        val portugal = LatLng(39.55, -7.85)
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(portugal, 6f))
+        // 4. Focar em Portugal Inteiro inicialmente
+        // Coordenadas centrais aproximadas de Portugal e Zoom 6.2f
+        val centroPortugal = LatLng(39.60, -8.00)
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(centroPortugal, 6.2f))
 
+        // Ativar o ponto azul (mas sem centrar a câmara automaticamente aqui,
+        // para respeitar o teu pedido de ver Portugal inteiro primeiro)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             enableBlueDot()
         }
@@ -315,10 +365,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { currentLocation ->
                     lastSentLocation = currentLocation
+
+                    // --- ALTERAÇÃO AQUI ---
+                    // Comentei estas linhas para o mapa NÃO fazer zoom automático
+                    // para o utilizador e manter a vista de Portugal.
+                    /*
                     if (isFirstLocation && ::mMap.isInitialized) {
                         isFirstLocation = false
                         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(currentLocation.latitude, currentLocation.longitude), 15f))
                     }
+                    */
+
+                    // Continua a atualizar a lista de amigos
                     if (currentTab == Tab.PEOPLE) buscarAmigos()
                 }
             }
