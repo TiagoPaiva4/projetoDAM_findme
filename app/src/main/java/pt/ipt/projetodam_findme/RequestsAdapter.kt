@@ -3,38 +3,54 @@ package pt.ipt.projetodam_findme
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import android.widget.ImageButton
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-data class RequestItem(val id_friendship: Int, val name: String, val email: String)
+// Modelo de dados simples para o pedido
+data class FriendRequest(
+    val id: Int,
+    val senderId: Int,
+    val name: String
+)
 
 class RequestsAdapter(
-    private val requests: List<RequestItem>,
-    private val onAccept: (Int) -> Unit
-) : RecyclerView.Adapter<RequestsAdapter.ViewHolder>() {
+    private val requests: List<FriendRequest>,
+    private val onAccept: (FriendRequest) -> Unit,
+    private val onReject: (FriendRequest) -> Unit
+) : RecyclerView.Adapter<RequestsAdapter.RequestViewHolder>() {
 
-    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val name: TextView = view.findViewById(R.id.txtReqName)
-        val email: TextView = view.findViewById(R.id.txtReqEmail)
-        val btn: Button = view.findViewById(R.id.btnAccept)
+    // AQUI ESTAVA O ERRO: Mudámos de Button para ImageButton
+    class RequestViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val tvName: TextView = itemView.findViewById(R.id.tvRequestName) // Confirma se o ID no XML é tvRequestName ou tvName
+        val btnAccept: ImageButton = itemView.findViewById(R.id.btnAccept)
+        val btnReject: ImageButton = itemView.findViewById(R.id.btnReject)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RequestViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_request, parent, false)
-        return ViewHolder(view)
+        return RequestViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val item = requests[position]
-        holder.name.text = item.name
-        holder.email.text = "Quer seguir-te"
+    override fun onBindViewHolder(holder: RequestViewHolder, position: Int) {
+        val request = requests[position]
 
-        holder.btn.setOnClickListener {
-            onAccept(item.id_friendship)
+        // Define o nome da pessoa
+        holder.tvName.text = request.name
+
+        // Configura o clique no botão de aceitar
+        holder.btnAccept.setOnClickListener {
+            onAccept(request)
+        }
+
+        // Configura o clique no botão de rejeitar
+        holder.btnReject.setOnClickListener {
+            onReject(request)
         }
     }
 
-    override fun getItemCount() = requests.size
+    override fun getItemCount(): Int {
+        return requests.size
+    }
 }

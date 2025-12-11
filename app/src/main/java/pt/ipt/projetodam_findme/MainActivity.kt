@@ -375,6 +375,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun enviarLocalizacao(userId: String, latitude: Double, longitude: Double) {
+        // NOVA VERIFICAÇÃO: Se o utilizador desligou a partilha, não envia nada
+        val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
+        if (!sharedPreferences.getBoolean("share_location", true)) {
+            return
+        }
+
+
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/update_location.php"
         val queue = Volley.newRequestQueue(this)
 
