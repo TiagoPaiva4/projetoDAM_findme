@@ -9,24 +9,33 @@
     android:paddingHorizontal="16dp"
     android:background="?attr/selectableItemBackground">
 
+    <!-- Avatar (Círculo com Letra) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cardAvatar"
         android:layout_width="48dp"
         android:layout_height="48dp"
         app:cardCornerRadius="24dp"
-        app:cardBackgroundColor="#444444"
+        app:cardBackgroundColor="#E5E5EA"
         app:cardElevation="0dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
 
-        <ImageView
-            android:id="@+id/imgAvatar"
+        <!-- MUDANÇA AQUI: TextView em vez de ImageView -->
+        <TextView
+            android:id="@+id/txtAvatarInitial"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="centerCrop"/>
+            android:gravity="center"
+            tools:text="T"
+            android:textColor="#3A8DDE"
+            android:textSize="20sp"
+            android:textStyle="bold"/>
+        <!-- Nota: textColor azul (#3A8DDE) ou cinzento escuro (#555555) fica bem -->
+
     </androidx.cardview.widget.CardView>
 
+    <!-- Textos (Nome e Tempo) -->
     <LinearLayout
         android:id="@+id/textContainer"
         android:layout_width="0dp"
@@ -35,7 +44,7 @@
         android:layout_marginStart="16dp"
         android:layout_marginEnd="8dp"
         app:layout_constraintStart_toEndOf="@id/cardAvatar"
-        app:layout_constraintEnd_toStartOf="@id/btnRemoveMember"
+        app:layout_constraintEnd_toStartOf="@id/layoutDistance"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
 
@@ -44,7 +53,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             tools:text="Tiago Paiva"
-            android:textColor="#FFFFFF"
+            android:textColor="#000000"
             android:textSize="16sp"
             android:textStyle="bold"/>
 
@@ -53,35 +62,41 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             tools:text="Há 5 min"
-            android:textColor="#BBBBBB"
-            android:textSize="13sp"/>
+            android:textColor="#8E8E93"
+            android:textSize="13sp"
+            android:layout_marginTop="2dp"/>
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/txtDistance"
+    <!-- Distância e Botão Delete -->
+    <LinearLayout
+        android:id="@+id/layoutDistance"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        tools:text="57 km"
-        android:textSize="14sp"
-        android:textColor="#BBBBBB"
-        android:textStyle="bold"
-        android:layout_marginEnd="8dp"
-        app:layout_constraintEnd_toStartOf="@id/btnRemoveMember"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"/>
-
-    <ImageView
-        android:id="@+id/btnRemoveMember"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:src="@android:drawable/ic_menu_delete"
-        app:tint="#D94C4C"
-        android:visibility="gone"
-        android:clickable="true"
-        android:focusable="true"
-        android:padding="5dp"
+        android:orientation="vertical"
+        android:gravity="end"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"/>
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <TextView
+            android:id="@+id/txtDistance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="57 km"
+            android:textSize="14sp"
+            android:textColor="#3A8DDE"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp"/>
+
+        <ImageView
+            android:id="@+id/btnRemoveMember"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_delete"
+            app:tint="#FF3B30"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true"/>
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
