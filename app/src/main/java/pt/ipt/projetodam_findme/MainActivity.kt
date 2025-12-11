@@ -38,6 +38,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import pt.ipt.projetodam_findme.services.LocationService
 import org.json.JSONObject
 
 enum class Tab { PEOPLE, GROUPS, CIRCLES, ME }
@@ -337,41 +338,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun startLocationUpdates() {
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).apply {
-            setMinUpdateIntervalMillis(5000)
-            setMinUpdateDistanceMeters(10f)
-        }.build()
-
-        val locationCallback = object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) {
-                locationResult.lastLocation?.let { currentLocation ->
-
-                    // CORREÇÃO: Verificar se mMap está inicializado antes de o usar
-                    if (::mMap.isInitialized) {
-                        if (isFirstLocation) {
-                            isFirstLocation = false
-                            val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
-                            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 6f))
-                            if (currentTab == Tab.PEOPLE) buscarAmigos()
-                            if (currentTab == Tab.GROUPS) buscarGrupos()
-                        }
-                    }
-
-                    if (lastSentLocation == null || lastSentLocation!!.distanceTo(currentLocation) >= MIN_DISTANCE_METERS) {
-                        lastSentLocation = currentLocation
-                        enviarLocalizacao(userId, currentLocation.latitude, currentLocation.longitude)
-
-                        // CORREÇÃO: Só atualizar amigos se o mapa estiver pronto
-                        if (currentTab == Tab.PEOPLE && ::mMap.isInitialized) {
-                            buscarAmigos()
-                        }
-                    }
-                }
-            }
+        // 1. Verificar se temos permissão (Segurança)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // Se não tiver permissão, não faz nada (ou pede permissão noutro sítio)
+            return
         }
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
-        }
+
+        // 2. Lógica de UI: Mostrar o Ponto Azul no Mapa
+        // Esta função já existe no teu código e ativa a camada "My Location" do Google Maps
+        enableBlueDot()
+
+        // 3. Lógica de Backend: Iniciar o Serviço de Envio
+        // Isto garante que a localização continua a ser enviada mesmo com a app fechada/bloqueada
+        val intent = Intent(this, LocationService::class.java)
+        intent.putExtra("USER_ID", userId) // Passamos o ID para o serviço saber quem é
+
+        // Inicia o serviço em modo Foreground
+        ContextCompat.startForegroundService(this, intent)
     }
 
     private fun enviarLocalizacao(userId: String, latitude: Double, longitude: Double) {
