@@ -18,7 +18,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -26,7 +25,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.Request
 import com.android.volley.toolbox.JsonObjectRequest
-import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -40,7 +38,6 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import pt.ipt.projetodam_findme.services.LocationService
-import org.json.JSONObject
 
 enum class Tab { PEOPLE, GROUPS, CIRCLES, ME }
 
@@ -48,7 +45,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private val permissionRequestCode = 101 // Código para o pedido de permissões
+    private val permissionRequestCode = 101
 
     private lateinit var userId: String
     private var lastSentLocation: Location? = null
@@ -62,9 +59,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var sheetBehavior: BottomSheetBehavior<LinearLayout>
 
-    // Variáveis para a funcionalidade de Grupos
-    private lateinit var groupsAdapter: GroupsAdapter
-    private val groupsList = ArrayList<Group>()
+    // Estado atual (apenas PEOPLE ou CIRCLES, pois GROUPS e ME abrem outras Activities)
     private var currentTab = Tab.PEOPLE
 
     // Elemento para o botão de adicionar
@@ -82,28 +77,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var indicatorCirculos: View
     private lateinit var indicatorEu: View
 
-    // Activity Result Launcher para a Criação de Grupo (Existente)
-    private val createGroupResultLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            // O grupo foi criado com sucesso, atualiza a lista
-            buscarGrupos()
-        }
-    }
-
-    // Activity Result Launcher para Detalhes do Grupo
-    private val groupDetailsResultLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            // O utilizador saiu ou eliminou o grupo, atualiza a lista se estiver no tab GRUPOS
-            if (currentTab == Tab.GROUPS) {
-                buscarGrupos()
-            }
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -118,12 +91,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             return
         }
 
-        // 1. Inicializamos o userId PRIMEIRO (Crucial para não crashar)
         userId = id.toString()
 
         setContentView(R.layout.activity_main)
 
-        // 2. Iniciar Serviço de Notificações
+        // Iniciar Serviço de Notificações
         val notifIntent = Intent(this, pt.ipt.projetodam_findme.services.NotificationService::class.java)
         notifIntent.putExtra("USER_ID", userId)
         ContextCompat.startForegroundService(this, notifIntent)
@@ -153,7 +125,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         recyclerFriends = findViewById(R.id.recyclerFriends)
         recyclerFriends.layoutManager = LinearLayoutManager(this)
 
-        // Adapter de Amigos
+        // Configurar Adapter de Amigos
         adapter = FriendsAdapter(
             friendsList = friendsList,
             clickListener = { friend ->
@@ -167,16 +139,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         )
         recyclerFriends.adapter = adapter
 
-        // Adapter de Grupos
-        groupsAdapter = GroupsAdapter(groupsList) { group ->
-            val intent = Intent(this, GroupDetailsActivity::class.java).apply {
-                putExtra("GROUP_ID", group.id)
-                putExtra("GROUP_NAME", group.name)
-            }
-            groupDetailsResultLauncher.launch(intent)
-        }
-
-        // Botão + (Add/Create)
+        // Botão + (Add) - Adiciona Amigos
         btnAddFriend = findViewById(R.id.btnAddFriend)
         btnAddFriend.setOnClickListener {
             handleAddButtonClick()
@@ -197,7 +160,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         atualizarEstiloAbas(tabPessoas)
         currentTab = Tab.PEOPLE
 
-        // Listeners
+        // --- LISTENERS DAS ABAS ---
+
+        // 1. PESSOAS (Mantém nesta activity)
         tabPessoas.setOnClickListener {
             atualizarEstiloAbas(tabPessoas)
             if (currentTab != Tab.PEOPLE) {
@@ -208,41 +173,38 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             buscarAmigos()
         }
 
+        // 2. GRUPOS (Abre nova Activity)
         tabGrupos.setOnClickListener {
-            atualizarEstiloAbas(tabGrupos)
-            if (currentTab != Tab.GROUPS) {
-                currentTab = Tab.GROUPS
-                recyclerFriends.adapter = groupsAdapter
-            }
-            sheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
-            buscarGrupos()
+            // Inicia a nova Activity de Grupos
+            val intent = Intent(this, GroupsActivity::class.java)
+            startActivity(intent)
+            // Remove a animação de transição para parecer uma navbar contínua
+            overridePendingTransition(0, 0)
+            // Não fazemos finish() aqui se quisermos que o Back button volte para o mapa principal,
+            // mas como é uma navbar, talvez queiras finish(). Depende da tua preferência de navegação.
+            // Para "Single Activity feel", geralmente não se faz finish() no Main, mas nos outros sim.
         }
 
+        // 3. CÍRCULOS (Futuro)
         tabCirculos.setOnClickListener {
             atualizarEstiloAbas(tabCirculos)
             currentTab = Tab.CIRCLES
             Toast.makeText(this, "Círculos (Em breve)", Toast.LENGTH_SHORT).show()
         }
 
+        // 4. EU (Abre ProfileActivity)
         tabEu.setOnClickListener {
-            atualizarEstiloAbas(tabEu)
-            currentTab = Tab.ME
-            startActivity(Intent(this, ProfileActivity::class.java))
+            val intent = Intent(this, ProfileActivity::class.java)
+            startActivity(intent)
+            overridePendingTransition(0, 0)
         }
     }
 
     private fun handleAddButtonClick() {
-        when (currentTab) {
-            Tab.PEOPLE -> {
-                startActivity(Intent(this, AddFriendActivity::class.java))
-            }
-            Tab.GROUPS -> {
-                val intent = Intent(this, CreateGroupActivity::class.java)
-                createGroupResultLauncher.launch(intent)
-            }
-            else -> {
-                Toast.makeText(this, "Função de adicionar não disponível neste separador.", Toast.LENGTH_SHORT).show()
-            }
+        if (currentTab == Tab.PEOPLE) {
+            startActivity(Intent(this, AddFriendActivity::class.java))
+        } else {
+            Toast.makeText(this, "Funcionalidade indisponível aqui.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -305,16 +267,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return BitmapDescriptorFactory.fromBitmap(bitmap)
     }
 
-    // --- LÓGICA DE PERMISSÕES ATUALIZADA ---
+    // --- LÓGICA DE PERMISSÕES ---
     private fun checkLocationPermission() {
         val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
 
-        // Adiciona permissão de notificações para Android 13+ (Tiramisu)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
 
-        // Verifica quais faltam
         val permissionsToRequest = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
@@ -329,7 +289,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == permissionRequestCode) {
-            // Se temos permissão de localização (a principal), iniciamos
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 startLocationUpdates()
                 if (::mMap.isInitialized) enableBlueDot()
@@ -366,15 +325,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             return
         }
 
-        // Iniciar o Serviço de Localização (Foreground)
         val intent = Intent(this, LocationService::class.java)
         intent.putExtra("USER_ID", userId)
         ContextCompat.startForegroundService(this, intent)
 
-        // Ativar Ponto Azul
         enableBlueDot()
 
-        // Lógica local para atualizar UI (lista de amigos)
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).apply {
             setMinUpdateIntervalMillis(2000)
         }.build()
@@ -391,7 +347,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     }
 
                     if (currentTab == Tab.PEOPLE) buscarAmigos()
-                    if (currentTab == Tab.GROUPS) buscarGrupos()
+                    // Grupos já não são carregados aqui
                 }
             }
         }
@@ -408,6 +364,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
             try {
+                // Se o utilizador trocou de aba enquanto a request ocorria
                 if (currentTab != Tab.PEOPLE) return@JsonObjectRequest
                 if (!::mMap.isInitialized) return@JsonObjectRequest
 
@@ -445,33 +402,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
             } catch (e: Exception) { Log.e("API", "Erro JSON: ${e.message}") }
         }, { error -> Log.e("API", "Erro Volley: ${error.message}") })
-
-        queue.add(request)
-    }
-
-    private fun buscarGrupos() {
-        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_my_groups.php?user_id=$userId"
-        val queue = Volley.newRequestQueue(this)
-
-        val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
-            try {
-                if (currentTab != Tab.GROUPS) return@JsonObjectRequest
-
-                val groupsArray = response.getJSONArray("groups")
-                groupsList.clear()
-
-                for (i in 0 until groupsArray.length()) {
-                    val groupObj = groupsArray.getJSONObject(i)
-                    val id = groupObj.getInt("id_group")
-                    val name = groupObj.getString("name_group")
-                    val totalMembers = groupObj.getInt("total_members")
-                    groupsList.add(Group(id, name, totalMembers))
-                }
-
-                groupsAdapter.notifyDataSetChanged()
-
-            } catch (e: Exception) { Log.e("API", "Erro JSON Groups: ${e.message}") }
-        }, { error -> Log.e("API", "Erro Volley Groups: ${error.message}") })
 
         queue.add(request)
     }

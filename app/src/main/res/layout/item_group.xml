@@ -1,60 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:paddingVertical="12dp"
-    android:paddingHorizontal="16dp"
-    android:background="?attr/selectableItemBackground">
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/bg_white_card"
+    android:elevation="4dp"
+    android:padding="16dp">
 
-    <!-- Ícone de Grupo -->
-    <androidx.cardview.widget.CardView
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        app:cardCornerRadius="24dp"
-        app:cardBackgroundColor="#444444"
-        app:cardElevation="0dp">
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:src="@android:drawable/ic_menu_recent_history"
-            android:scaleType="centerInside"
-            android:padding="10dp"
-            app:tint="#FFFFFF"/>
-    </androidx.cardview.widget.CardView>
+    <TextView
+        android:id="@+id/tvGroupInitial"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:background="@drawable/bg_avatar_circle"
+        android:gravity="center"
+        android:textColor="@android:color/white"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="G" />
 
-    <!-- Texto -->
-    <LinearLayout
+    <TextView
+        android:id="@+id/tvGroupName"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical"
-        android:layout_marginStart="16dp">
-
-        <TextView
-            android:id="@+id/txtGroupName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Nome do Grupo"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold"/>
-
-        <TextView
-            android:id="@+id/txtGroupInfo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="3 membros"
-            android:textColor="#98989D"
-            android:textSize="13sp"/>
-    </LinearLayout>
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="8dp"
+        android:textColor="#000000"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/tvGroupDetails"
+        app:layout_constraintEnd_toStartOf="@+id/ivArrow"
+        app:layout_constraintStart_toEndOf="@+id/tvGroupInitial"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed"
+        tools:text="Nome do Grupo" />
 
     <ImageView
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:src="@android:drawable/ic_media_play"
-        app:tint="#666666"/>
+        android:id="@+id/ivMemberIcon"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="16dp"
+        android:src="@drawable/ic_nav_groups"
+        app:tint="#3A8DDE"
+        app:layout_constraintBottom_toBottomOf="@+id/tvGroupDetails"
+        app:layout_constraintStart_toEndOf="@+id/tvGroupInitial"
+        app:layout_constraintTop_toTopOf="@+id/tvGroupDetails" />
 
-</LinearLayout>
+    <TextView
+        android:id="@+id/tvGroupDetails"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:layout_marginEnd="8dp"
+        android:textColor="#8E8E93"
+        android:textSize="14sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/ivArrow"
+        app:layout_constraintStart_toEndOf="@+id/ivMemberIcon"
+        app:layout_constraintTop_toBottomOf="@+id/tvGroupName"
+        tools:text="5 membros" />
+
+    <ImageView
+        android:id="@+id/ivArrow"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_arrow_up"
+        android:rotation="90"
+        app:tint="#C7C7CC"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
