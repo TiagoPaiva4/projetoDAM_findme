@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.location.Location
+import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
@@ -47,7 +48,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private val locationPermissionRequestCode = 1
+    private val permissionRequestCode = 101 // Código para o pedido de permissões
 
     private lateinit var userId: String
     private var lastSentLocation: Location? = null
@@ -116,9 +117,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             redirecionarLogin()
             return
         }
+
+        // 1. Inicializamos o userId PRIMEIRO (Crucial para não crashar)
         userId = id.toString()
 
         setContentView(R.layout.activity_main)
+
+        // 2. Iniciar Serviço de Notificações
+        val notifIntent = Intent(this, pt.ipt.projetodam_findme.services.NotificationService::class.java)
+        notifIntent.putExtra("USER_ID", userId)
+        ContextCompat.startForegroundService(this, notifIntent)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
@@ -149,7 +157,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         adapter = FriendsAdapter(
             friendsList = friendsList,
             clickListener = { friend ->
-                // CORREÇÃO: Só mexer no mapa se ele estiver pronto
                 if (::mMap.isInitialized) {
                     val pos = LatLng(friend.latitude, friend.longitude)
                     mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f))
@@ -298,21 +305,37 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return BitmapDescriptorFactory.fromBitmap(bitmap)
     }
 
+    // --- LÓGICA DE PERMISSÕES ATUALIZADA ---
     private fun checkLocationPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            startLocationUpdates()
-        } else {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), locationPermissionRequestCode)
+        val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
+
+        // Adiciona permissão de notificações para Android 13+ (Tiramisu)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
 
+        // Verifica quais faltam
+        val permissionsToRequest = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (permissionsToRequest.isEmpty()) {
+            startLocationUpdates()
+        } else {
+            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), permissionRequestCode)
+        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == locationPermissionRequestCode && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startLocationUpdates()
-            // CORREÇÃO: Só chamar enableBlueDot se o mapa existir
-            if (::mMap.isInitialized) enableBlueDot()
+        if (requestCode == permissionRequestCode) {
+            // Se temos permissão de localização (a principal), iniciamos
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                startLocationUpdates()
+                if (::mMap.isInitialized) enableBlueDot()
+            } else {
+                Toast.makeText(this, "Permissão de localização necessária.", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -339,20 +362,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun startLocationUpdates() {
-        // 1. Verificar Permissões
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return
         }
 
-        // 2. Iniciar o Serviço (Responsável por ENVIAR para a BD em segundo plano)
+        // Iniciar o Serviço de Localização (Foreground)
         val intent = Intent(this, LocationService::class.java)
         intent.putExtra("USER_ID", userId)
         ContextCompat.startForegroundService(this, intent)
 
-        // 3. Ativar o Ponto Azul no Mapa
+        // Ativar Ponto Azul
         enableBlueDot()
 
-        // 4. Pedir atualizações LOCAIS para a UI (Para a lista de amigos funcionar)
+        // Lógica local para atualizar UI (lista de amigos)
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).apply {
             setMinUpdateIntervalMillis(2000)
         }.build()
@@ -360,21 +382,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val uiLocationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { currentLocation ->
-                    // Guardar a localização atual para calcular distâncias
                     lastSentLocation = currentLocation
 
-                    // Se for a primeira localização, focar o mapa no utilizador
                     if (isFirstLocation && ::mMap.isInitialized) {
                         isFirstLocation = false
                         val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
                         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 15f))
                     }
 
-                    // Atualizar as listas de amigos/grupos com as novas distâncias
                     if (currentTab == Tab.PEOPLE) buscarAmigos()
                     if (currentTab == Tab.GROUPS) buscarGrupos()
-
-                    // NOTA: Não chamamos enviarLocalizacao() aqui porque o LocationService já está a fazer isso!
                 }
             }
         }
@@ -382,32 +399,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         fusedLocationClient.requestLocationUpdates(locationRequest, uiLocationCallback, Looper.getMainLooper())
     }
 
-    private fun enviarLocalizacao(userId: String, latitude: Double, longitude: Double) {
-        // NOVA VERIFICAÇÃO: Se o utilizador desligou a partilha, não envia nada
-        val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
-        if (!sharedPreferences.getBoolean("share_location", true)) {
-            return
-        }
-
-
-        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/update_location.php"
-        val queue = Volley.newRequestQueue(this)
-
-        val postRequest = object : StringRequest(Request.Method.POST, url,
-            { },
-            { error -> Log.e("API", "Erro envio: ${error.message}") }
-        ) {
-            override fun getParams(): MutableMap<String, String> {
-                return mutableMapOf("user_id" to userId, "latitude" to latitude.toString(), "longitude" to longitude.toString())
-            }
-        }
-        queue.add(postRequest)
-    }
-
     private fun buscarAmigos() {
         if (lastSentLocation == null) return
-
-        // CORREÇÃO: Se o mapa não existe, sai logo para não dar erro
         if (!::mMap.isInitialized) return
 
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_users_locations.php?user_id=$userId"
@@ -416,14 +409,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
             try {
                 if (currentTab != Tab.PEOPLE) return@JsonObjectRequest
-
-                // CORREÇÃO: Revalidar o mapa antes de tentar adicionar marcadores
                 if (!::mMap.isInitialized) return@JsonObjectRequest
 
                 val usersArray = response.getJSONArray("users")
                 friendsList.clear()
 
-                // Limpeza segura dos marcadores
                 markersMap.values.forEach { it.remove() }
                 markersMap.clear()
 
@@ -443,7 +433,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         .icon(criarIconeCircular(name))
                         .anchor(0.5f, 0.5f)
 
-                    // Adicionar marcador ao mapa
                     val marker = mMap.addMarker(markerOptions)
                     if (marker != null) markersMap[friendId] = marker
 
