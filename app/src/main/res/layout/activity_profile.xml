@@ -8,6 +8,7 @@
     android:background="#000000">
 
     <!-- MAPA DE FUNDO -->
+    <!-- (ID mantido: mapProfile) -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/mapProfile"
         android:name="com.google.android.gms.maps.SupportMapFragment"
@@ -16,11 +17,14 @@
         android:layout_marginBottom="85dp" />
 
     <!-- CONTEÚDO COM SCROLL -->
+    <!-- ADICIONADO ID: nestedScrollView -->
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:fillViewport="true"
         android:clipToPadding="false"
+        android:overScrollMode="never"
         app:layout_constraintBottom_toTopOf="@+id/navBarBottom"
         app:layout_constraintTop_toTopOf="parent">
 
@@ -31,14 +35,17 @@
             android:paddingHorizontal="16dp"
             android:paddingBottom="20dp">
 
-            <!-- ESPAÇO TRANSPARENTE -->
+            <!-- ESPAÇO TRANSPARENTE (ÁREA DE TOQUE DO MAPA) -->
+            <!-- ADICIONADO ID: viewMapTouch -->
             <View
+                android:id="@+id/viewMapTouch"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
                 android:minHeight="400dp"/>
 
-            <!-- CARTÃO 1: LOCALIZAÇÃO ESTILO NOVO -->
+            <!-- (O resto do layout mantém-se igual...) -->
+            <!-- CARTÃO 1: LOCALIZAÇÃO -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -47,17 +54,16 @@
                 app:cardElevation="4dp"
                 android:layout_marginBottom="12dp">
 
+                <!-- ... Conteúdo do cartão ... -->
                 <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content">
-
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:padding="20dp">
 
-                        <!-- TÍTULO GRANDE -->
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -67,29 +73,22 @@
                             android:textStyle="bold"
                             android:layout_marginBottom="12dp"/>
 
-                        <!-- ZONA DA MORADA COM ÍCONE -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal"
                             android:gravity="top">
-
-                            <!-- Ícone Pin -->
                             <ImageView
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
                                 android:src="@drawable/ic_pin_blue"
                                 android:layout_marginTop="2dp"
                                 android:layout_marginEnd="8dp"/>
-
-                            <!-- Textos da Morada -->
                             <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:orientation="vertical">
-
-                                <!-- RUA (Mais escuro) -->
                                 <TextView
                                     android:id="@+id/tvStreet"
                                     android:layout_width="match_parent"
@@ -98,8 +97,6 @@
                                     android:textColor="#404040"
                                     android:textSize="15sp"
                                     android:paddingEnd="30dp"/>
-
-                                <!-- CP e CIDADE (Mais claro e pequeno) -->
                                 <TextView
                                     android:id="@+id/tvCityZip"
                                     android:layout_width="match_parent"
@@ -112,7 +109,6 @@
                             </LinearLayout>
                         </LinearLayout>
 
-                        <!-- SEPARADOR -->
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"
@@ -120,19 +116,16 @@
                             android:layout_marginBottom="12dp"
                             android:background="#E5E5EA"/>
 
-                        <!-- SWITCH PARTILHA -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
                             android:orientation="horizontal">
-
                             <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:orientation="vertical">
-
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
@@ -140,7 +133,6 @@
                                     android:textColor="#000000"
                                     android:textSize="16sp"
                                     android:textStyle="bold" />
-
                                 <TextView
                                     android:id="@+id/tvShareStatus"
                                     android:layout_width="wrap_content"
@@ -150,7 +142,6 @@
                                     android:textSize="12sp"
                                     android:layout_marginTop="2dp"/>
                             </LinearLayout>
-
                             <com.google.android.material.materialswitch.MaterialSwitch
                                 android:id="@+id/switchLocation"
                                 android:layout_width="wrap_content"
@@ -159,7 +150,6 @@
                                 app:trackTint="#34C759"/>
                         </LinearLayout>
 
-                        <!-- SEPARADOR -->
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"
@@ -167,7 +157,6 @@
                             android:layout_marginBottom="6dp"
                             android:background="#E5E5EA"/>
 
-                        <!-- TEXTO FUNDO "Última atualização" -->
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -176,10 +165,8 @@
                             android:textSize="11sp"
                             android:gravity="center"
                             android:layout_marginTop="12dp"/>
-
                     </LinearLayout>
 
-                    <!-- A SETA (Mantida no Topo Direito) -->
                     <ImageView
                         android:id="@+id/btnExpandMore"
                         android:layout_width="48dp"
@@ -193,7 +180,6 @@
                         android:layout_marginTop="12dp"
                         android:layout_marginEnd="8dp"
                         app:tint="#8E8E93" />
-
                 </FrameLayout>
             </androidx.cardview.widget.CardView>
 
@@ -205,7 +191,6 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
-                <!-- CARTÃO 2: PEDIDOS DE AMIZADE -->
                 <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -213,28 +198,24 @@
                     app:cardCornerRadius="14dp"
                     app:cardElevation="4dp"
                     android:layout_marginBottom="24dp">
-
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:paddingBottom="8dp">
-
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="PEDIDOS DE AMIZADE"
+                            android:text="Pedidos de amizade"
                             android:textColor="#8E8E93"
                             android:textSize="12sp"
                             android:textStyle="bold"
                             android:padding="16dp"/>
-
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"
                             android:layout_marginHorizontal="16dp"
                             android:background="#E5E5EA"/>
-
                         <androidx.recyclerview.widget.RecyclerView
                             android:id="@+id/recyclerRequests"
                             android:layout_width="match_parent"
@@ -242,11 +223,9 @@
                             android:nestedScrollingEnabled="false"
                             tools:itemCount="2"
                             tools:listitem="@layout/item_request"/>
-
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-                <!-- BOTÃO LOGOUT -->
                 <Button
                     android:id="@+id/btnLogout"
                     android:layout_width="match_parent"
@@ -256,13 +235,11 @@
                     android:backgroundTint="#FFFFFF"
                     app:cornerRadius="12dp"
                     android:layout_marginBottom="24dp"/>
-
             </LinearLayout>
-
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- BARRA DE NAVEGAÇÃO -->
+    <!-- BARRA DE NAVEGAÇÃO (Mantida igual) -->
     <LinearLayout
         android:id="@+id/navBarBottom"
         android:layout_width="match_parent"
@@ -301,7 +278,6 @@
                 android:textColor="#8E8E93"
                 android:layout_marginTop="4dp"/>
         </LinearLayout>
-
         <LinearLayout
             android:id="@+id/navGrupos"
             android:layout_width="0dp"
@@ -327,7 +303,6 @@
                 android:textColor="#8E8E93"
                 android:layout_marginTop="4dp"/>
         </LinearLayout>
-
         <LinearLayout
             android:id="@+id/navZona"
             android:layout_width="0dp"
@@ -353,7 +328,6 @@
                 android:textColor="#8E8E93"
                 android:layout_marginTop="4dp"/>
         </LinearLayout>
-
         <LinearLayout
             android:id="@+id/navEu"
             android:layout_width="0dp"
@@ -381,5 +355,4 @@
                 android:layout_marginTop="4dp"/>
         </LinearLayout>
     </LinearLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>
