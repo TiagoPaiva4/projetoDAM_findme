@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -24,16 +25,15 @@ class NotificationService : Service() {
 
     private var userId: String? = null
     private val handler = Handler(Looper.getMainLooper())
-    // Evita repetir a notificação para o mesmo pedido
-    private val notifiedRequests = HashSet<Int>()
 
-    // Configuração: Verificar a cada 10 segundos
-    private val POLL_INTERVAL = 10000L
+    // ALTERAÇÃO: Verificar a cada 60 segundos para poupar bateria
+    private val POLL_INTERVAL = 60000L
 
     companion object {
         private const val CHANNEL_SERVICE_ID = "notification_service_channel"
         private const val CHANNEL_ALERTS_ID = "friend_requests_channel"
         private const val NOTIFICATION_ID = 999
+        private const val PREFS_NAME = "NotificacoesLog"
     }
 
     // O "Robot" que executa a tarefa repetidamente
@@ -89,17 +89,28 @@ class NotificationService : Service() {
         val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
             val requestsArray = response.optJSONArray("requests")
             if (requestsArray != null) {
+
+                // ALTERAÇÃO: Usar SharedPreferences para persistir quem já foi notificado
+                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val editor = prefs.edit()
+
                 for (i in 0 until requestsArray.length()) {
                     val obj = requestsArray.getJSONObject(i)
                     val reqId = obj.getInt("id_friendship")
                     val senderName = obj.getString("name")
 
-                    // Se ainda não notificámos este ID, lança o alerta
-                    if (!notifiedRequests.contains(reqId)) {
+                    // Chave única para este pedido de amizade
+                    val key = "req_$reqId"
+
+                    // Se AINDA NÃO notificámos este pedido (false no prefs)
+                    if (!prefs.getBoolean(key, false)) {
                         sendAlertNotification(senderName)
-                        notifiedRequests.add(reqId)
+
+                        // Marcar como notificado para sempre
+                        editor.putBoolean(key, true)
                     }
                 }
+                editor.apply()
             }
         }, { Log.e("NotifService", "Erro API: ${it.message}") })
 
