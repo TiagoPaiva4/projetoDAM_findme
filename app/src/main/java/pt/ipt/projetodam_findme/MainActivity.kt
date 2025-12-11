@@ -38,6 +38,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import pt.ipt.projetodam_findme.services.LocationService
 import org.json.JSONObject
 
 enum class Tab { PEOPLE, GROUPS, CIRCLES, ME }
@@ -303,6 +304,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         } else {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), locationPermissionRequestCode)
         }
+
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
@@ -337,41 +339,47 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun startLocationUpdates() {
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).apply {
-            setMinUpdateIntervalMillis(5000)
-            setMinUpdateDistanceMeters(10f)
+        // 1. Verificar Permissões
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return
+        }
+
+        // 2. Iniciar o Serviço (Responsável por ENVIAR para a BD em segundo plano)
+        val intent = Intent(this, LocationService::class.java)
+        intent.putExtra("USER_ID", userId)
+        ContextCompat.startForegroundService(this, intent)
+
+        // 3. Ativar o Ponto Azul no Mapa
+        enableBlueDot()
+
+        // 4. Pedir atualizações LOCAIS para a UI (Para a lista de amigos funcionar)
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).apply {
+            setMinUpdateIntervalMillis(2000)
         }.build()
 
-        val locationCallback = object : LocationCallback() {
+        val uiLocationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { currentLocation ->
+                    // Guardar a localização atual para calcular distâncias
+                    lastSentLocation = currentLocation
 
-                    // CORREÇÃO: Verificar se mMap está inicializado antes de o usar
-                    if (::mMap.isInitialized) {
-                        if (isFirstLocation) {
-                            isFirstLocation = false
-                            val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
-                            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 6f))
-                            if (currentTab == Tab.PEOPLE) buscarAmigos()
-                            if (currentTab == Tab.GROUPS) buscarGrupos()
-                        }
+                    // Se for a primeira localização, focar o mapa no utilizador
+                    if (isFirstLocation && ::mMap.isInitialized) {
+                        isFirstLocation = false
+                        val userPos = LatLng(currentLocation.latitude, currentLocation.longitude)
+                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userPos, 15f))
                     }
 
-                    if (lastSentLocation == null || lastSentLocation!!.distanceTo(currentLocation) >= MIN_DISTANCE_METERS) {
-                        lastSentLocation = currentLocation
-                        enviarLocalizacao(userId, currentLocation.latitude, currentLocation.longitude)
+                    // Atualizar as listas de amigos/grupos com as novas distâncias
+                    if (currentTab == Tab.PEOPLE) buscarAmigos()
+                    if (currentTab == Tab.GROUPS) buscarGrupos()
 
-                        // CORREÇÃO: Só atualizar amigos se o mapa estiver pronto
-                        if (currentTab == Tab.PEOPLE && ::mMap.isInitialized) {
-                            buscarAmigos()
-                        }
-                    }
+                    // NOTA: Não chamamos enviarLocalizacao() aqui porque o LocationService já está a fazer isso!
                 }
             }
         }
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
-        }
+
+        fusedLocationClient.requestLocationUpdates(locationRequest, uiLocationCallback, Looper.getMainLooper())
     }
 
     private fun enviarLocalizacao(userId: String, latitude: Double, longitude: Double) {
