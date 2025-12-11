@@ -116,9 +116,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             redirecionarLogin()
             return
         }
+
+        // 1. Inicializamos o userId PRIMEIRO
         userId = id.toString()
 
         setContentView(R.layout.activity_main)
+
+        // 2. AGORA sim, podemos iniciar o serviço (porque userId já existe)
+        val notifIntent = Intent(this, pt.ipt.projetodam_findme.services.NotificationService::class.java)
+        notifIntent.putExtra("USER_ID", userId)
+        ContextCompat.startForegroundService(this, notifIntent)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
