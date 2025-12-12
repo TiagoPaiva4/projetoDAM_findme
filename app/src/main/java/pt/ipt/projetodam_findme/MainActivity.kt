@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var userId: String
     private var lastSentLocation: Location? = null
-    private var isFirstLocation = true
+    // private var isFirstLocation = true // Não usado atualmente
 
     private lateinit var recyclerFriends: RecyclerView
     private val friendsList = ArrayList<Friend>()
@@ -62,15 +62,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var sheetBehavior: BottomSheetBehavior<LinearLayout>
 
     private var currentTab = Tab.PEOPLE
-    private lateinit var btnAddFriend: ImageView
 
     // UI Elements - ABAS
     private lateinit var tabPessoas: LinearLayout
     private lateinit var tabGrupos: LinearLayout
     private lateinit var tabCirculos: LinearLayout
     private lateinit var tabEu: LinearLayout
-
-    // INDICADORES REMOVIDOS AQUI
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -128,22 +125,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         // --- Lógica da Seta (Toggle) ---
         val btnToggle = findViewById<ImageView>(R.id.btnToggleSheet)
 
-        // Listener para rodar a seta conforme o sheet sobe/desce
         sheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
-            override fun onStateChanged(bottomSheet: View, newState: Int) {
-                // Opcional: ajustar seta se necessário no fim da animação
-            }
+            override fun onStateChanged(bottomSheet: View, newState: Int) {}
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                // Roda a seta 180 graus conforme o progresso (0.0 a 1.0)
-                // Se slideOffset > 0 é expandido, < 0 é escondido.
-                // Ajustamos para rodar apenas quando está a expandir acima do peekHeight
                 if (slideOffset >= 0) {
                     btnToggle.rotation = slideOffset * 180
                 }
             }
         })
 
-        // Clique na seta para abrir/fechar
         btnToggle.setOnClickListener {
             if (sheetBehavior.state == BottomSheetBehavior.STATE_EXPANDED) {
                 sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
@@ -156,6 +146,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         recyclerFriends = findViewById(R.id.recyclerFriends)
         recyclerFriends.layoutManager = LinearLayoutManager(this)
 
+        // [CORREÇÃO] Passamos o addFriendListener aqui
         adapter = FriendsAdapter(
             friendsList = friendsList,
             clickListener = { friend ->
@@ -165,17 +156,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
                 }
             },
-            currentUserId = userId.toInt()
+            currentUserId = userId.toInt(),
+            addFriendListener = { handleAddButtonClick() }
         )
         recyclerFriends.adapter = adapter
 
-        // --- Novo Botão de Adicionar (Fundo da lista) ---
-        val btnAddNewFriendAction = findViewById<LinearLayout>(R.id.btnAddNewFriendAction)
-        btnAddNewFriendAction.setOnClickListener {
-            handleAddButtonClick()
-        }
-
-        // (Removemos a referência antiga ao btnAddFriend porque ele já não existe no XML)
+        // O botão antigo btnAddNewFriendAction já não existe no XML da Activity, foi removido.
 
         // Inicializar NavItems
         tabPessoas = findViewById(R.id.navPessoas)
@@ -203,6 +189,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             currentTab = Tab.GROUPS
             val intent = Intent(this, GroupsActivity::class.java)
             startActivity(intent)
+            // [CORREÇÃO] Suprimir depreciação
+            @Suppress("DEPRECATION")
             overridePendingTransition(0, 0)
         }
 
@@ -215,6 +203,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         tabEu.setOnClickListener {
             val intent = Intent(this, ProfileActivity::class.java)
             startActivity(intent)
+            // [CORREÇÃO] Suprimir depreciação
+            @Suppress("DEPRECATION")
             overridePendingTransition(0, 0)
         }
     }
@@ -227,7 +217,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // Função simplificada (apenas muda cores, não indicadores)
     private fun atualizarEstiloAbas(abaSelecionada: LinearLayout) {
         val listaAbas = listOf(tabPessoas, tabGrupos, tabCirculos, tabEu)
 
@@ -311,30 +300,22 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
-        // 1. Mudar para Satélite Híbrido (Satélite + Nomes de ruas/cidades)
         mMap.mapType = GoogleMap.MAP_TYPE_HYBRID
 
-        // 2. Remover todos os botões da Google
         mMap.uiSettings.apply {
-            isZoomControlsEnabled = false    // Remove botões +/-
-            isMapToolbarEnabled = false      // Remove botões de "Abrir no Maps"
-            isCompassEnabled = false         // Remove a bússola
-            isMyLocationButtonEnabled = false // Remove o botão "Onde estou" (canto superior)
-            isRotateGesturesEnabled = true   // Permite rodar
-            isZoomGesturesEnabled = true     // Permite zoom com os dedos
+            isZoomControlsEnabled = false
+            isMapToolbarEnabled = false
+            isCompassEnabled = false
+            isMyLocationButtonEnabled = false
+            isRotateGesturesEnabled = true
+            isZoomGesturesEnabled = true
         }
 
-        // 3. Ajustar Padding (para o logo da Google não ficar escondido pela Navbar)
-        // Topo: 0, Fundo: 90dp (altura da navbar)
         mMap.setPadding(0, dpToPx(50), 0, dpToPx(90))
 
-        // 4. Focar em Portugal Inteiro inicialmente
-        // Coordenadas centrais aproximadas de Portugal e Zoom 6.2f
         val centroPortugal = LatLng(39.60, -8.00)
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(centroPortugal, 6.2f))
 
-        // Ativar o ponto azul (mas sem centrar a câmara automaticamente aqui,
-        // para respeitar o teu pedido de ver Portugal inteiro primeiro)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             enableBlueDot()
         }
@@ -365,17 +346,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { currentLocation ->
                     lastSentLocation = currentLocation
-
-                    // --- ALTERAÇÃO AQUI ---
-                    // Comentei estas linhas para o mapa NÃO fazer zoom automático
-                    // para o utilizador e manter a vista de Portugal.
-                    /*
-                    if (isFirstLocation && ::mMap.isInitialized) {
-                        isFirstLocation = false
-                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(currentLocation.latitude, currentLocation.longitude), 15f))
-                    }
-                    */
-
                     // Continua a atualizar a lista de amigos
                     if (currentTab == Tab.PEOPLE) buscarAmigos()
                 }

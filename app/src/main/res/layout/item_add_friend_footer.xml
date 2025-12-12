@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/btnAddNewFriendFooter"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center"
+    android:padding="15dp"
+    android:background="#FFFFFF"
+    android:clickable="true"
+    android:focusable="true">
+
+    <ImageView
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_add_circle"
+        app:tint="#3A8DDE"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Adicionar novo amigo"
+        android:textColor="#3A8DDE"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginStart="10dp"/>
+</LinearLayout>

@@ -13,7 +13,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-// Classe de dados do Amigo
+// Data class (mantém-se igual)
 data class Friend(
     val id: Int,
     val name: String,
@@ -28,11 +28,18 @@ class FriendsAdapter(
     private val clickListener: (Friend) -> Unit,
     private val currentUserId: Int = -1,
     private val groupCreatorId: Int = -2,
-    private val removeListener: ((Friend) -> Unit)? = null
-) : RecyclerView.Adapter<FriendsAdapter.FriendViewHolder>() {
+    private val removeListener: ((Friend) -> Unit)? = null,
+    // [CORREÇÃO] O listener agora é opcional e null por defeito.
+    // Assim, o GroupDetailsActivity não crasha e não mostra o botão.
+    private val addFriendListener: (() -> Unit)? = null
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    companion object {
+        private const val TYPE_ITEM = 0
+        private const val TYPE_FOOTER = 1
+    }
 
     class FriendViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        // MUDANÇA: Agora usamos o TextView da inicial, não o ImageView
         val txtAvatarInitial: TextView = itemView.findViewById(R.id.txtAvatarInitial)
         val txtName: TextView = itemView.findViewById(R.id.txtName)
         val txtStatus: TextView = itemView.findViewById(R.id.txtStatus)
@@ -40,69 +47,92 @@ class FriendsAdapter(
         val btnRemove: ImageView = itemView.findViewById(R.id.btnRemoveMember)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FriendViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_person_modern, parent, false)
-        return FriendViewHolder(view)
+    class FooterViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView)
+
+    override fun getItemViewType(position: Int): Int {
+        // [CORREÇÃO] Só mostra o rodapé se o listener existir E for a última posição
+        return if (addFriendListener != null && position == friendsList.size) {
+            TYPE_FOOTER
+        } else {
+            TYPE_ITEM
+        }
     }
 
-    override fun onBindViewHolder(holder: FriendViewHolder, position: Int) {
-        val friend = friendsList[position]
-        val context = holder.itemView.context
-
-        // 1. Nome
-        holder.txtName.text = friend.name
-
-        // 2. Avatar (Letra Inicial) - NOVA LÓGICA
-        val inicial = if (friend.name.isNotEmpty()) {
-            friend.name.first().toString().uppercase()
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return if (viewType == TYPE_ITEM) {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_person_modern, parent, false)
+            FriendViewHolder(view)
         } else {
-            "?"
+            // Layout do botão de rodapé
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_add_friend_footer, parent, false)
+            FooterViewHolder(view)
         }
-        holder.txtAvatarInitial.text = inicial
+    }
 
-        // 3. Status Complexo (Cidade + Tempo)
-        val tempoTexto = getTempoRelativo(friend.lastUpdate)
-        val cidade = obterCidade(context, friend.latitude, friend.longitude)
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        if (getItemViewType(position) == TYPE_ITEM) {
+            val friendHolder = holder as FriendViewHolder
+            val friend = friendsList[position]
+            val context = friendHolder.itemView.context
 
-        val statusText = if (friend.distanceMeters <= 0f && friend.latitude == 0.0) {
-            "Localização indisponível"
-        } else if (cidade.isNotEmpty()) {
-            "$cidade • $tempoTexto"
-        } else {
-            tempoTexto
-        }
-        holder.txtStatus.text = statusText
+            // Nome
+            friendHolder.txtName.text = friend.name
 
-        // 4. Distância Formatada
-        if (friend.distanceMeters > 0f) {
-            val distanceKm = friend.distanceMeters / 1000
-            val formattedDistance = if (distanceKm < 1) {
-                "${friend.distanceMeters.toInt()} m"
+            // Avatar
+            val inicial = if (friend.name.isNotEmpty()) friend.name.first().toString().uppercase() else "?"
+            friendHolder.txtAvatarInitial.text = inicial
+
+            // Status
+            val tempoTexto = getTempoRelativo(friend.lastUpdate)
+            val cidade = obterCidade(context, friend.latitude, friend.longitude)
+
+            val statusText = if (friend.distanceMeters <= 0f && friend.latitude == 0.0) {
+                "Localização indisponível"
+            } else if (cidade.isNotEmpty()) {
+                "$cidade • $tempoTexto"
             } else {
-                String.format(Locale.US, "%.1f km", distanceKm)
+                tempoTexto
             }
-            holder.txtDistance.text = formattedDistance
-        } else {
-            holder.txtDistance.text = ""
-        }
+            friendHolder.txtStatus.text = statusText
 
-        // 5. Clique no item
-        holder.itemView.setOnClickListener { clickListener(friend) }
-
-        // 6. Botão de Remover
-        val canRemove = removeListener != null && currentUserId == groupCreatorId && friend.id != currentUserId
-
-        if (canRemove) {
-            holder.btnRemove.visibility = View.VISIBLE
-            holder.btnRemove.setOnClickListener {
-                removeListener?.invoke(friend)
+            // Distância
+            if (friend.distanceMeters > 0f) {
+                val distanceKm = friend.distanceMeters / 1000
+                val formattedDistance = if (distanceKm < 1) {
+                    "${friend.distanceMeters.toInt()} m"
+                } else {
+                    String.format(Locale.US, "%.1f km", distanceKm)
+                }
+                friendHolder.txtDistance.text = formattedDistance
+            } else {
+                friendHolder.txtDistance.text = ""
             }
+
+            // Cliques
+            friendHolder.itemView.setOnClickListener { clickListener(friend) }
+
+            // Remover (apenas se for criador do grupo)
+            val canRemove = removeListener != null && currentUserId == groupCreatorId && friend.id != currentUserId
+            if (canRemove) {
+                friendHolder.btnRemove.visibility = View.VISIBLE
+                friendHolder.btnRemove.setOnClickListener { removeListener?.invoke(friend) }
+            } else {
+                friendHolder.btnRemove.visibility = View.GONE
+            }
+
         } else {
-            holder.btnRemove.visibility = View.GONE
+            // [CORREÇÃO] Lógica do Rodapé (Botão Adicionar)
+            // Só entra aqui se addFriendListener != null
+            holder.itemView.setOnClickListener {
+                addFriendListener?.invoke()
+            }
         }
     }
 
-    override fun getItemCount() = friendsList.size
+    override fun getItemCount(): Int {
+        // [CORREÇÃO] Se não houver listener, o tamanho é apenas a lista (sem rodapé)
+        return friendsList.size + if (addFriendListener != null) 1 else 0
+    }
 
     // --- FUNÇÕES AUXILIARES ---
 

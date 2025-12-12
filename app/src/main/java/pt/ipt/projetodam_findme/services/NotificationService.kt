@@ -16,6 +16,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.android.volley.Request
+import com.android.volley.RequestQueue // [NOVO] Import necessário
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import pt.ipt.projetodam_findme.ProfileActivity
@@ -25,6 +26,9 @@ class NotificationService : Service() {
 
     private var userId: String? = null
     private val handler = Handler(Looper.getMainLooper())
+
+    // [CORREÇÃO] Variável para armazenar a fila única
+    private lateinit var requestQueue: RequestQueue
 
     // ALTERAÇÃO: Verificar a cada 60 segundos para poupar bateria
     private val POLL_INTERVAL = 60000L
@@ -48,6 +52,9 @@ class NotificationService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
+
+        // [CORREÇÃO] Inicializar a fila APENAS UMA VEZ aqui
+        requestQueue = Volley.newRequestQueue(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -84,7 +91,9 @@ class NotificationService : Service() {
 
     private fun checkFriendRequests(id: String) {
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_pending_requests.php?user_id=$id"
-        val queue = Volley.newRequestQueue(applicationContext)
+
+        // [CORREÇÃO] Removemos a linha: val queue = Volley.newRequestQueue(...)
+        // Usamos a requestQueue global criada no onCreate
 
         val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
             val requestsArray = response.optJSONArray("requests")
@@ -114,7 +123,8 @@ class NotificationService : Service() {
             }
         }, { Log.e("NotifService", "Erro API: ${it.message}") })
 
-        queue.add(request)
+        // [CORREÇÃO] Adicionar à fila única
+        requestQueue.add(request)
     }
 
     private fun sendAlertNotification(name: String) {
@@ -163,6 +173,8 @@ class NotificationService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(checkRunnable) // Parar o loop
+        // [OPCIONAL] Se quiseres limpar a fila ao destruir o serviço:
+        // requestQueue.cancelAll { true }
         super.onDestroy()
     }
 

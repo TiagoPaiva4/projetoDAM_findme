@@ -23,10 +23,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat // Necessário para o ajuste
-import androidx.core.view.WindowInsetsCompat // Necessário para o ajuste
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.Request
@@ -65,7 +64,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var btnAddMember: MaterialButton
     private lateinit var btnLeaveGroup: Button
 
-    // Variáveis da Bottom Sheet
     private lateinit var imgExpandSheet: ImageView
     private lateinit var layoutMembersHeader: LinearLayout
 
@@ -100,9 +98,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         val prefs = getSharedPreferences("SessaoUsuario", Context.MODE_PRIVATE)
         myUserId = prefs.getInt("id_user", -1)
 
-        // =================================================================
-        // 1. VINCULAR VIEWS
-        // =================================================================
         txtGroupNameTitle = findViewById(R.id.txtGroupNameTitle)
         txtGroupMemberCount = findViewById(R.id.txtGroupMemberCount)
         txtMembersCountSmall = findViewById(R.id.txtMembersCountSmall)
@@ -116,20 +111,15 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         txtGroupNameTitle.text = groupName
 
-        // 2. CONFIGURAR MAPA
         val mapFragment = supportFragmentManager.findFragmentById(R.id.mapGroup) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        // =================================================================
-        // 3. CONFIGURAR BOTTOM SHEET
-        // =================================================================
         try {
             sheetBehavior = BottomSheetBehavior.from(bottomSheet)
             sheetBehavior.peekHeight = dpToPx(80)
 
             sheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
                 override fun onStateChanged(bottomSheet: View, newState: Int) {}
-
                 override fun onSlide(bottomSheet: View, slideOffset: Float) {
                     if (!slideOffset.isNaN() && slideOffset >= 0) {
                         imgExpandSheet.rotation = slideOffset * 180
@@ -149,27 +139,21 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
             Log.e("GroupDetails", "Erro BottomSheet: ${e.message}")
         }
 
-        // =================================================================
-        // 4. CONFIGURAR LISTA & CORREÇÃO PADDING (BOTÕES SISTEMA)
-        // =================================================================
         recyclerGroupMembers = findViewById(R.id.recyclerGroupMembers)
         recyclerGroupMembers.layoutManager = LinearLayoutManager(this)
 
-        // --- CORREÇÃO IMPORTANTE AQUI ---
-        // Isto garante que o último item da lista não fica escondido atrás dos botões do telemóvel
         ViewCompat.setOnApplyWindowInsetsListener(recyclerGroupMembers) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            // 20dp base + altura dos botões do sistema
             val paddingBottom = (20 * resources.displayMetrics.density).toInt() + bars.bottom
             view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, paddingBottom)
             insets
         }
-        // --------------------------------
 
         val removeMemberAction: (Friend) -> Unit = { friend ->
             removeMember(friend.id, friend.name)
         }
 
+        // [NOTA] Não passamos addFriendListener aqui, por isso o botão não aparece
         membersAdapter = FriendsAdapter(
             friendsList = membersList,
             clickListener = { member ->
@@ -183,8 +167,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         )
         recyclerGroupMembers.adapter = membersAdapter
 
-
-        // 5. LISTENERS BOTÕES
         val btnBack = findViewById<ImageButton>(R.id.btnBack)
         btnBack.setOnClickListener { finish() }
 
@@ -197,7 +179,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         btnLeaveGroup.setOnClickListener { leaveGroup() }
 
-        // 6. BUSCAR DADOS
         Handler(Looper.getMainLooper()).postDelayed({
             fetchMyCurrentLocation()
         }, 500)
@@ -323,8 +304,8 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 membersList.sortByDescending { it.distanceMeters > 0f }
 
-                // Recriar o adapter para garantir atualização
                 val removeMemberAction: (Friend) -> Unit = { friend -> removeMember(friend.id, friend.name) }
+                // [NOTA] Recriamos o adapter sem passar listener, pois é grupo
                 membersAdapter = FriendsAdapter(
                     friendsList = membersList,
                     clickListener = { member ->
@@ -392,7 +373,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         queue.add(request)
     }
-
 
     private fun criarIconeCircular(nome: String): BitmapDescriptor {
         val width = 120
