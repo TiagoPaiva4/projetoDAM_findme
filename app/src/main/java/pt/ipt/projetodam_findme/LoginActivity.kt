@@ -14,6 +14,11 @@ import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import org.json.JSONObject
 import java.nio.charset.Charset
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.SignInButton
+import com.google.android.gms.common.api.ApiException
 
 class LoginActivity : AppCompatActivity() {
 
@@ -21,6 +26,13 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var editPassword: EditText
     private lateinit var btnLogin: Button
     private lateinit var txtRegister: TextView
+    private lateinit var btnGoogleSignIn: SignInButton
+    private lateinit var googleSignInClient: GoogleSignInClient
+
+    companion object { // <-- Add this block
+        private const val RC_SIGN_IN = 9001
+        }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,12 +42,27 @@ class LoginActivity : AppCompatActivity() {
         editPassword = findViewById(R.id.editPassword)
         btnLogin = findViewById(R.id.btnLogin)
         txtRegister = findViewById(R.id.txtRegister)
+        btnGoogleSignIn = findViewById(R.id.btnGoogleSignIn)
+
+        // Configure Google Sign-In
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        .requestIdToken("1050226007080-ch5u5u0vv2n1sde2psbkbk2ooi9plq3v.apps.googleusercontent.com") // <-- IMPORTANT
+        .requestEmail()
+        .build()
+
+        googleSignInClient = GoogleSignIn.getClient(this, gso)
 
         btnLogin.setOnClickListener { loginUser() }
 
         txtRegister.setOnClickListener {
             startActivity(Intent(this, RegisterActivity::class.java))
         }
+
+        btnGoogleSignIn.setOnClickListener {
+            signIn()
+        }
+
+
     }
 
     private fun loginUser() {
@@ -122,4 +149,35 @@ class LoginActivity : AppCompatActivity() {
 
         Volley.newRequestQueue(this).add(request)
     }
+    private fun signIn() {
+        val signInIntent = googleSignInClient.signInIntent
+        startActivityForResult(signInIntent, RC_SIGN_IN)
+    }
+
+
+
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        // Result returned from launching the Intent from GoogleSignInClient.getSignInIntent(...);
+        if (requestCode == RC_SIGN_IN) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            try {
+                // Google Sign In was successful, authenticate with Firebase
+                val account = task.getResult(ApiException::class.java)
+                Log.d("LoginActivity", "firebaseAuthWithGoogle:" + account.id)
+                // Here you would typically send the ID token to your backend
+                // for verification and user authentication/registration.
+                // For now, let's just show a toast with the ID token.
+                Toast.makeText(this, "Google Sign-In successful. ID Token: ${account.idToken}", Toast.LENGTH_LONG).show()
+
+            } catch (e: ApiException) {
+                // Google Sign In failed, update UI appropriately
+                Log.w("LoginActivity", "Google sign in failed", e)
+                Toast.makeText(this, "Google Sign-In failed: ${e.statusCode}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 }
+
