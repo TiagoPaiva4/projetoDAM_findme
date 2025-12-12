@@ -5,119 +5,200 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black">
+    android:fitsSystemWindows="true"
+    android:background="#F2F2F7">
 
+    <!-- 1. MAPA (Fundo) -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/mapGroup"
         android:name="com.google.android.gms.maps.SupportMapFragment"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent"
+        android:layout_marginBottom="0dp"/>
 
-    <ImageButton
-        android:id="@+id/btnBack"
-        android:layout_width="45dp"
-        android:layout_height="45dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="55dp"
-        android:background="@drawable/bg_circle_button"
-        android:elevation="4dp"
-        android:src="@android:drawable/ic_delete"
-        app:tint="#666666"
-        android:scaleType="fitCenter"
-        android:padding="8dp"/>
-
-
-    <LinearLayout
-        android:id="@+id/bottomSheetGroup"
+    <!-- 2. CARTÃO DE INFORMAÇÃO (TOPO) -->
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:elevation="10dp"
-        app:behavior_peekHeight="100dp"
-        app:behavior_hideable="false"
-        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+        android:layout_marginTop="45dp"
+        android:layout_marginHorizontal="16dp"
+        app:cardBackgroundColor="#FFFFFF"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="8dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="@drawable/bg_glass_header"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp">
+            android:padding="20dp">
 
+            <!-- Cabeçalho do Cartão (Voltar + Avatar + Texto) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center"
-                android:paddingBottom="8dp">
-                <View
-                    android:layout_width="75dp"
-                    android:layout_height="5dp"
-                    android:background="#8E8E93"
-                    android:backgroundTint="#8E8E93"/>
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:paddingHorizontal="20dp"
-                android:orientation="horizontal">
+                android:layout_marginBottom="16dp">
 
-                <TextView
-                    android:id="@+id/txtGroupNameTitle"
+                <!-- BOTÃO VOLTAR -->
+                <ImageButton
+                    android:id="@+id/btnBack"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/ic_arrow_left"
+                    app:tint="#000000"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:scaleType="centerInside"
+                    android:layout_marginEnd="8dp"/>
+
+                <!-- Avatar -->
+                <ImageView
+                    android:id="@+id/imgGroupAvatar"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_nav_groups"
+                    android:background="@drawable/bg_circle_gray"
+                    android:padding="10dp"
+                    app:tint="#F59E0B"/>
+
+                <!-- Textos -->
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    tools:text="IPT"
-                    android:textColor="#FFFFFF"
-                    android:textSize="22sp"
-                    android:textStyle="bold"/>
+                    android:orientation="vertical"
+                    android:layout_marginStart="12dp">
 
-                <ImageView
-                    android:id="@+id/btnAddMember"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:src="@android:drawable/ic_input_add"
-                    app:tint="#FFFFFF"
-                    android:layout_marginStart="10dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackgroundBorderless"/>
+                    <TextView
+                        android:id="@+id/txtGroupNameTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="Família"
+                        android:textColor="#000000"
+                        android:textSize="20sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/txtGroupMemberCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="3/5 membros ativos"
+                        android:textColor="#8E8E93"
+                        android:textSize="13sp"/>
+                </LinearLayout>
+
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/txtGroupMemberCount"
-                android:layout_width="wrap_content"
+            <!-- Botões (Adicionar e Sair) -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingHorizontal="20dp"
-                android:layout_marginTop="2dp"
-                tools:text="3 membros"
-                android:textColor="#BBBBBB"
-                android:textSize="14sp"/>
+                android:orientation="horizontal">
+
+                <!-- Adicionar (Azul) -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAddMember"
+                    android:layout_width="0dp"
+                    android:layout_height="50dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    android:text="Adicionar"
+                    android:textColor="#FFFFFF"
+                    android:textAllCaps="false"
+                    app:icon="@drawable/ic_plus"
+                    app:iconTint="#FFFFFF"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="#3A8DDE"
+                    app:cornerRadius="12dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"/>
+
+                <!-- Sair (Vermelho) -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnLeaveGroup"
+                    android:layout_width="0dp"
+                    android:layout_height="50dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:text="Sair"
+                    android:textColor="#FFFFFF"
+                    android:textAllCaps="false"
+                    app:icon="@drawable/ic_logout"
+                    app:iconTint="#FFFFFF"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="#FF3B30"
+                    app:cornerRadius="12dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"/>
+            </LinearLayout>
 
         </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
+    <!-- 3. BOTTOM SHEET (Lista de Membros) -->
+    <LinearLayout
+        android:id="@+id/bottomSheetGroup"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/bg_sheet_top"
+        android:elevation="16dp"
+        app:behavior_peekHeight="80dp"
+        app:behavior_hideable="false"
+        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+
+        <!-- CABEÇALHO DA LISTA (CLICÁVEL) -->
+        <LinearLayout
+            android:id="@+id/layoutMembersHeader"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:orientation="horizontal"
+            android:paddingHorizontal="20dp"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Membros"
+                android:textColor="#000000"
+                android:textSize="18sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/txtMembersCountSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="5"
+                android:textColor="#8E8E93"
+                android:textSize="14sp"
+                android:layout_marginStart="8dp"/>
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1"/>
+
+            <!-- SETA QUE VAI RODAR -->
+            <ImageView
+                android:id="@+id/imgExpandSheet"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_arrow_down"
+                app:tint="#000000"/>
+        </LinearLayout>
+
+        <!-- Lista -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerGroupMembers"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="5dp"
-            android:background="@drawable/bg_glass_body"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingBottom="20dp"
+            android:background="#FFFFFF"
             tools:listitem="@layout/item_person_modern"/>
-
-        <Button
-            android:id="@+id/btnLeaveGroup"
-            android:layout_width="match_parent"
-            android:layout_height="55dp"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="24dp"
-            android:backgroundTint="@android:color/holo_red_dark"
-            android:text="SAIR DESTE GRUPO"
-            android:textColor="@android:color/white"
-            android:textStyle="bold"
-            app:cornerRadius="12dp" />
 
     </LinearLayout>
 

@@ -168,11 +168,29 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         obterMoradaAtual()
         carregarPedidos()
 
-        // 8. Navegação
-        findViewById<LinearLayout>(R.id.navPessoas).setOnClickListener { finish() }
-        findViewById<LinearLayout>(R.id.navGrupos).setOnClickListener { finish() }
+        // 8. Navegação (Atualizado)
+        findViewById<LinearLayout>(R.id.navPessoas).setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            overridePendingTransition(0, 0)
+            finish()
+        }
+
+        findViewById<LinearLayout>(R.id.navGrupos).setOnClickListener {
+            val intent = Intent(this, GroupsActivity::class.java)
+            startActivity(intent)
+            overridePendingTransition(0, 0)
+            finish() // Fechamos o Profile para não acumular pilhas de activities
+        }
+
         findViewById<LinearLayout>(R.id.navZona).setOnClickListener {
             Toast.makeText(this, "Zona: Em breve", Toast.LENGTH_SHORT).show()
+        }
+
+        // Opcional: Se clicares no "EU" (onde já estás), podes apenas fazer scroll para o topo
+        findViewById<LinearLayout>(R.id.navEu).setOnClickListener {
+            findViewById<NestedScrollView>(R.id.nestedScrollView).smoothScrollTo(0, 0)
         }
 
         // 9. Botão de Logout

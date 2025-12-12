@@ -14,15 +14,18 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.Request
@@ -41,6 +44,7 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.button.MaterialButton
 import org.json.JSONObject
 
 class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -50,13 +54,18 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private var groupId: Int = -1
     private var groupName: String = ""
-    private var myUserId: Int = -1 // Alterado para Int para consistência
+    private var myUserId: Int = -1
     private var groupCreatorId: Int = -1
 
     private lateinit var txtGroupNameTitle: TextView
     private lateinit var txtGroupMemberCount: TextView
-    private lateinit var btnAddMember: ImageView
+    private lateinit var txtMembersCountSmall: TextView
+
+    private lateinit var btnAddMember: MaterialButton
     private lateinit var btnLeaveGroup: Button
+
+    private lateinit var imgExpandSheet: ImageView
+    private lateinit var layoutMembersHeader: LinearLayout
 
     private lateinit var recyclerGroupMembers: RecyclerView
     private val membersList = ArrayList<Friend>()
@@ -65,7 +74,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private var myLastLocation: Location? = null
 
-    // Launcher para a Activity de Adicionar Membro
     private val addMemberResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -90,37 +98,62 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         val prefs = getSharedPreferences("SessaoUsuario", Context.MODE_PRIVATE)
         myUserId = prefs.getInt("id_user", -1)
 
-        // 2. Configurar UI
         txtGroupNameTitle = findViewById(R.id.txtGroupNameTitle)
         txtGroupMemberCount = findViewById(R.id.txtGroupMemberCount)
+        txtMembersCountSmall = findViewById(R.id.txtMembersCountSmall)
+
         btnAddMember = findViewById(R.id.btnAddMember)
         btnLeaveGroup = findViewById(R.id.btnLeaveGroup)
 
+        val bottomSheet = findViewById<LinearLayout>(R.id.bottomSheetGroup)
+        imgExpandSheet = findViewById(R.id.imgExpandSheet)
+        layoutMembersHeader = findViewById(R.id.layoutMembersHeader)
+
         txtGroupNameTitle.text = groupName
 
-        // 3. Configurar Mapa
         val mapFragment = supportFragmentManager.findFragmentById(R.id.mapGroup) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        // 4. Configurar Bottom Sheet
-        val bottomSheet = findViewById<LinearLayout>(R.id.bottomSheetGroup)
-
         try {
             sheetBehavior = BottomSheetBehavior.from(bottomSheet)
-            sheetBehavior.peekHeight = dpToPx(100)
+            sheetBehavior.peekHeight = dpToPx(80)
+
+            sheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
+                override fun onStateChanged(bottomSheet: View, newState: Int) {}
+                override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                    if (!slideOffset.isNaN() && slideOffset >= 0) {
+                        imgExpandSheet.rotation = slideOffset * 180
+                    }
+                }
+            })
+
+            layoutMembersHeader.setOnClickListener {
+                if (sheetBehavior.state == BottomSheetBehavior.STATE_COLLAPSED) {
+                    sheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+                } else {
+                    sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
+                }
+            }
+
         } catch (e: IllegalArgumentException) {
             Log.e("GroupDetails", "Erro BottomSheet: ${e.message}")
-        }
-
-        // 5. Configurar Adapter e RecyclerView
-        val removeMemberAction: (Friend) -> Unit = { friend ->
-            removeMember(friend.id, friend.name)
         }
 
         recyclerGroupMembers = findViewById(R.id.recyclerGroupMembers)
         recyclerGroupMembers.layoutManager = LinearLayoutManager(this)
 
-        // Inicializa o adapter com o valor inicial (groupCreatorId = -1)
+        ViewCompat.setOnApplyWindowInsetsListener(recyclerGroupMembers) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val paddingBottom = (20 * resources.displayMetrics.density).toInt() + bars.bottom
+            view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, paddingBottom)
+            insets
+        }
+
+        val removeMemberAction: (Friend) -> Unit = { friend ->
+            removeMember(friend.id, friend.name)
+        }
+
+        // [NOTA] Não passamos addFriendListener aqui, por isso o botão não aparece
         membersAdapter = FriendsAdapter(
             friendsList = membersList,
             clickListener = { member ->
@@ -134,9 +167,9 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         )
         recyclerGroupMembers.adapter = membersAdapter
 
+        val btnBack = findViewById<ImageButton>(R.id.btnBack)
+        btnBack.setOnClickListener { finish() }
 
-        // 6. Listeners
-        findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
         btnAddMember.setOnClickListener {
             val intent = Intent(this, AddMemberActivity::class.java).apply {
                 putExtra("GROUP_ID", groupId)
@@ -144,11 +177,8 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
             addMemberResultLauncher.launch(intent)
         }
 
-        btnLeaveGroup.setOnClickListener {
-            leaveGroup()
-        }
+        btnLeaveGroup.setOnClickListener { leaveGroup() }
 
-        // 7. Começar a buscar localizações (com um pequeno atraso para dar tempo ao mapa)
         Handler(Looper.getMainLooper()).postDelayed({
             fetchMyCurrentLocation()
         }, 500)
@@ -163,7 +193,7 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         mMap = googleMap
         mMap.mapType = GoogleMap.MAP_TYPE_HYBRID
         mMap.uiSettings.isZoomControlsEnabled = true
-        mMap.setPadding(0, dpToPx(80), 0, dpToPx(100))
+        mMap.setPadding(0, dpToPx(80), 0, dpToPx(85))
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             mMap.isMyLocationEnabled = true
@@ -189,7 +219,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun updateGroupCreatorUI() {
-        // Esta função usa o groupCreatorId já lido para atualizar o botão
         if (myUserId == groupCreatorId) {
             btnLeaveGroup.text = "ELIMINAR GRUPO"
             btnLeaveGroup.backgroundTintList = ContextCompat.getColorStateList(this, android.R.color.holo_red_dark)
@@ -207,7 +236,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
             try {
-                // CORREÇÃO AQUI: LER O CREATOR_ID DA RESPOSTA JSON
                 groupCreatorId = response.optInt("creator_id", -1)
 
                 val membersArray = response.getJSONArray("members")
@@ -216,12 +244,14 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
                 markersMap.values.forEach { it.remove() }
                 markersMap.clear()
 
-                txtGroupMemberCount.text = "${membersArray.length()} membros"
+                val count = membersArray.length()
+                txtGroupMemberCount.text = "$count membros ativos"
+                txtMembersCountSmall.text = count.toString()
 
                 val boundsBuilder = LatLngBounds.builder()
                 var validLocationCount = 0
 
-                for (i in 0 until membersArray.length()) {
+                for (i in 0 until count) {
                     val memberObj = membersArray.getJSONObject(i)
                     val memberId = memberObj.getInt("id_user")
                     val name = memberObj.getString("name")
@@ -259,7 +289,7 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
                     membersList.add(Friend(memberId, name, lat, lon, distanceMeters, statusText))
                 }
 
-                updateGroupCreatorUI() // Atualiza o texto do botão
+                updateGroupCreatorUI()
 
                 if (validLocationCount > 0 && ::mMap.isInitialized) {
                     if (validLocationCount == 1) {
@@ -274,8 +304,8 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 membersList.sortByDescending { it.distanceMeters > 0f }
 
-                // RE-INICIALIZAÇÃO DO ADAPTER COM O groupCreatorId LIDO
                 val removeMemberAction: (Friend) -> Unit = { friend -> removeMember(friend.id, friend.name) }
+                // [NOTA] Recriamos o adapter sem passar listener, pois é grupo
                 membersAdapter = FriendsAdapter(
                     friendsList = membersList,
                     clickListener = { member ->
@@ -301,7 +331,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun leaveGroup() {
-        // Agora leaveGroup chama removeMember com o próprio ID
         removeMember(myUserId, "Eu")
     }
 
@@ -344,7 +373,6 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         queue.add(request)
     }
-
 
     private fun criarIconeCircular(nome: String): BitmapDescriptor {
         val width = 120

@@ -1,11 +1,6 @@
 package pt.ipt.projetodam_findme
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Typeface
 import android.location.Geocoder
 import android.view.LayoutInflater
 import android.view.View
@@ -18,8 +13,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-// Certifica-te que esta classe de dados corresponde ao que usas na MainActivity
-// Se já tiveres a classe Friend noutro ficheiro, podes apagar esta definição aqui.
+// Data class (mantém-se igual)
 data class Friend(
     val id: Int,
     val name: String,
@@ -34,79 +28,111 @@ class FriendsAdapter(
     private val clickListener: (Friend) -> Unit,
     private val currentUserId: Int = -1,
     private val groupCreatorId: Int = -2,
-    private val removeListener: ((Friend) -> Unit)? = null
-) : RecyclerView.Adapter<FriendsAdapter.FriendViewHolder>() {
+    private val removeListener: ((Friend) -> Unit)? = null,
+    // [CORREÇÃO] O listener agora é opcional e null por defeito.
+    // Assim, o GroupDetailsActivity não crasha e não mostra o botão.
+    private val addFriendListener: (() -> Unit)? = null
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    companion object {
+        private const val TYPE_ITEM = 0
+        private const val TYPE_FOOTER = 1
+    }
 
     class FriendViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val imgAvatar: ImageView = itemView.findViewById(R.id.imgAvatar)
+        val txtAvatarInitial: TextView = itemView.findViewById(R.id.txtAvatarInitial)
         val txtName: TextView = itemView.findViewById(R.id.txtName)
         val txtStatus: TextView = itemView.findViewById(R.id.txtStatus)
         val txtDistance: TextView = itemView.findViewById(R.id.txtDistance)
         val btnRemove: ImageView = itemView.findViewById(R.id.btnRemoveMember)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FriendViewHolder {
-        // Assegura que estamos a usar o layout correto 'item_person_modern'
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_person_modern, parent, false)
-        return FriendViewHolder(view)
+    class FooterViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView)
+
+    override fun getItemViewType(position: Int): Int {
+        // [CORREÇÃO] Só mostra o rodapé se o listener existir E for a última posição
+        return if (addFriendListener != null && position == friendsList.size) {
+            TYPE_FOOTER
+        } else {
+            TYPE_ITEM
+        }
     }
 
-    override fun onBindViewHolder(holder: FriendViewHolder, position: Int) {
-        val friend = friendsList[position]
-        val context = holder.itemView.context
-
-        // 1. Nome
-        holder.txtName.text = friend.name
-
-        // 2. Avatar (Letra Inicial desenhada dinamicamente)
-        holder.imgAvatar.setImageBitmap(desenharAvatar(friend.name))
-
-        // 3. Status Complexo (Cidade + Tempo)
-        // Nota: O Geocoder pode ser lento na UI thread, mas mantive a tua lógica original
-        val tempoTexto = getTempoRelativo(friend.lastUpdate)
-        val cidade = obterCidade(context, friend.latitude, friend.longitude)
-
-        val statusText = if (friend.distanceMeters <= 0f && friend.latitude == 0.0) {
-            "Localização indisponível"
-        } else if (cidade.isNotEmpty()) {
-            "$cidade • $tempoTexto"
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return if (viewType == TYPE_ITEM) {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_person_modern, parent, false)
+            FriendViewHolder(view)
         } else {
-            tempoTexto
+            // Layout do botão de rodapé
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_add_friend_footer, parent, false)
+            FooterViewHolder(view)
         }
-        holder.txtStatus.text = statusText
+    }
 
-        // 4. Distância Formatada (km ou m)
-        if (friend.distanceMeters > 0f) {
-            val distanceKm = friend.distanceMeters / 1000
-            val formattedDistance = if (distanceKm < 1) {
-                "${friend.distanceMeters.toInt()} m"
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        if (getItemViewType(position) == TYPE_ITEM) {
+            val friendHolder = holder as FriendViewHolder
+            val friend = friendsList[position]
+            val context = friendHolder.itemView.context
+
+            // Nome
+            friendHolder.txtName.text = friend.name
+
+            // Avatar
+            val inicial = if (friend.name.isNotEmpty()) friend.name.first().toString().uppercase() else "?"
+            friendHolder.txtAvatarInitial.text = inicial
+
+            // Status
+            val tempoTexto = getTempoRelativo(friend.lastUpdate)
+            val cidade = obterCidade(context, friend.latitude, friend.longitude)
+
+            val statusText = if (friend.distanceMeters <= 0f && friend.latitude == 0.0) {
+                "Localização indisponível"
+            } else if (cidade.isNotEmpty()) {
+                "$cidade • $tempoTexto"
             } else {
-                String.format(Locale.US, "%.1f km", distanceKm)
+                tempoTexto
             }
-            holder.txtDistance.text = formattedDistance
-        } else {
-            // Se a distância for 0 ou inválida, esconde ou limpa o texto
-            holder.txtDistance.text = ""
-        }
+            friendHolder.txtStatus.text = statusText
 
-        // 5. Clique no item (para abrir o mapa)
-        holder.itemView.setOnClickListener { clickListener(friend) }
-
-        // 6. Botão de Remover (Lógica de Grupos)
-        // Só mostra o botão se formos o criador do grupo e o amigo não for nós próprios
-        val canRemove = removeListener != null && currentUserId == groupCreatorId && friend.id != currentUserId
-
-        if (canRemove) {
-            holder.btnRemove.visibility = View.VISIBLE
-            holder.btnRemove.setOnClickListener {
-                removeListener?.invoke(friend)
+            // Distância
+            if (friend.distanceMeters > 0f) {
+                val distanceKm = friend.distanceMeters / 1000
+                val formattedDistance = if (distanceKm < 1) {
+                    "${friend.distanceMeters.toInt()} m"
+                } else {
+                    String.format(Locale.US, "%.1f km", distanceKm)
+                }
+                friendHolder.txtDistance.text = formattedDistance
+            } else {
+                friendHolder.txtDistance.text = ""
             }
+
+            // Cliques
+            friendHolder.itemView.setOnClickListener { clickListener(friend) }
+
+            // Remover (apenas se for criador do grupo)
+            val canRemove = removeListener != null && currentUserId == groupCreatorId && friend.id != currentUserId
+            if (canRemove) {
+                friendHolder.btnRemove.visibility = View.VISIBLE
+                friendHolder.btnRemove.setOnClickListener { removeListener?.invoke(friend) }
+            } else {
+                friendHolder.btnRemove.visibility = View.GONE
+            }
+
         } else {
-            holder.btnRemove.visibility = View.GONE
+            // [CORREÇÃO] Lógica do Rodapé (Botão Adicionar)
+            // Só entra aqui se addFriendListener != null
+            holder.itemView.setOnClickListener {
+                addFriendListener?.invoke()
+            }
         }
     }
 
-    override fun getItemCount() = friendsList.size
+    override fun getItemCount(): Int {
+        // [CORREÇÃO] Se não houver listener, o tamanho é apenas a lista (sem rodapé)
+        return friendsList.size + if (addFriendListener != null) 1 else 0
+    }
 
     // --- FUNÇÕES AUXILIARES ---
 
@@ -114,25 +140,22 @@ class FriendsAdapter(
         if (lat == 0.0 && lon == 0.0) return ""
         return try {
             val geocoder = Geocoder(context, Locale.getDefault())
-            // Nota: getFromLocation pode bloquear a UI. Idealmente seria feito em background.
             @Suppress("DEPRECATION")
             val addresses = geocoder.getFromLocation(lat, lon, 1)
 
             if (!addresses.isNullOrEmpty()) {
                 val address = addresses[0]
-                // Tenta obter Localidade, se falhar tenta Área Administrativa
                 address.locality ?: address.subAdminArea ?: address.adminArea ?: ""
             } else {
                 ""
             }
         } catch (e: Exception) {
-            "" // Em caso de erro (sem internet, etc), retorna vazio sem crashar
+            ""
         }
     }
 
     private fun getTempoRelativo(dataString: String): String {
         try {
-            // Ajusta o formato se a tua BD enviar diferente (ex: com T ou timezone)
             val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
             val past = format.parse(dataString)
             val now = Date()
@@ -140,7 +163,6 @@ class FriendsAdapter(
             if (past == null) return "Desconhecido"
 
             val diffMillis = now.time - past.time
-            // Evitar tempos negativos se o relógio do servidor estiver desalinhado
             if (diffMillis < 0) return "Agora"
 
             val minutes = TimeUnit.MILLISECONDS.toMinutes(diffMillis)
@@ -156,32 +178,5 @@ class FriendsAdapter(
         } catch (e: Exception) {
             return "Desconhecido"
         }
-    }
-
-    private fun desenharAvatar(nome: String): Bitmap {
-        val size = 120
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        val paint = Paint()
-
-        // Fundo do círculo
-        paint.color = Color.parseColor("#444444")
-        paint.style = Paint.Style.FILL
-        paint.isAntiAlias = true
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
-
-        // Texto (Inicial do nome)
-        paint.color = Color.WHITE
-        paint.textSize = 60f
-        paint.textAlign = Paint.Align.CENTER
-        paint.typeface = Typeface.DEFAULT_BOLD
-
-        val xPos = size / 2f
-        val yPos = (size / 2f) - ((paint.descent() + paint.ascent()) / 2)
-        val letra = if (nome.isNotEmpty()) nome.first().toString().uppercase() else "?"
-
-        canvas.drawText(letra, xPos, yPos, paint)
-
-        return bitmap
     }
 }

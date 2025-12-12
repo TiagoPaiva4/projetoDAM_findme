@@ -5,59 +5,31 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mainCoordinator"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#F2F2F7">
 
-    <!-- 1. MAPA (Fundo) -->
+    <!-- 1. MAPA -->
     <androidx.fragment.app.FragmentContainerView
-        android:id="@+id/map"
+        android:id="@+id/mapMain"
         android:name="com.google.android.gms.maps.SupportMapFragment"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent"
+        android:layout_marginBottom="90dp"/>
 
-    <!-- 2. BARRA DE PESQUISA FLUTUANTE (No Topo) -->
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="50dp"
-        app:cardCornerRadius="10dp"
-        app:cardBackgroundColor="#CC2C2C2E"
-        app:cardElevation="0dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="15dp">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@android:drawable/ic_menu_search"
-                app:tint="#BBBBBB"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Pesquisar Pessoas..."
-                android:textColor="#BBBBBB"
-                android:layout_marginStart="10dp"/>
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
-    <!-- 3. PAINEL INFERIOR -->
+    <!-- 3. BOTTOM SHEET -->
     <LinearLayout
-        android:id="@+id/bottomSheet"
+        android:id="@+id/bottomSheetFriends"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:background="@android:color/transparent"
-        android:elevation="10dp"
+        android:background="@drawable/bg_sheet_top"
+        android:elevation="12dp"
+        android:layout_marginBottom="85dp"
         app:behavior_peekHeight="240dp"
         app:behavior_hideable="false"
         app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
 
-        <!-- 1. A PEGA (BARRINHA CINZENTA) - FLUTUANTE EM CIMA -->
+        <!-- Pega (Handle) -->
         <LinearLayout
             android:id="@+id/dragHandleArea"
             android:layout_width="match_parent"
@@ -66,206 +38,210 @@
             android:paddingBottom="8dp"
             android:clickable="true"
             android:focusable="true">
-
-            <!-- A Barra Cinzenta -->
             <View
                 android:id="@+id/dragHandle"
-                android:layout_width="75dp"
-                android:layout_height="5dp"
-                android:background="#8E8E93"
-                android:backgroundTint="#8E8E93"/>
+                android:layout_width="40dp"
+                android:layout_height="4dp"
+                android:background="#D1D1D6"
+                android:backgroundTint="#D1D1D6"
+                android:layout_marginTop="10dp"/>
         </LinearLayout>
 
-        <!-- 2. CABEÇALHO (ONDE COMEÇA O FUNDO DE VIDRO) -->
+        <!-- Cabeçalho com a SETA -->
         <LinearLayout
-            android:id="@+id/headerContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_glass_header"
-            android:paddingTop="10dp"
-            android:paddingBottom="5dp">
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="20dp"
+            android:layout_marginBottom="5dp">
 
-            <!-- LINHA DAS ABAS + BOTÃO + -->
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingHorizontal="5dp">
+                android:layout_weight="1"
+                android:text="Pessoas"
+                android:textColor="#000000"
+                android:textSize="22sp"
+                android:textStyle="bold"/>
 
-                <!-- ABAS -->
-                <!-- Aba Pessoas -->
-                <LinearLayout
-                    android:id="@+id/tabPessoas"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackgroundBorderless">
-
-                    <!-- Ícone (VISIBILITY GONE - Escondido mas existe) -->
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@android:drawable/ic_menu_myplaces"
-                        app:tint="#FFFFFF"
-                        android:visibility="gone"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Pessoas"
-                        android:textSize="14sp"
-                        android:textColor="#FFFFFF"
-                        android:textStyle="bold"
-                        android:layout_marginTop="2dp"/>
-
-                    <!-- O TRAÇO BRANCO -->
-                    <View
-                        android:id="@+id/indicatorPessoas"
-                        android:layout_width="40dp"
-                        android:layout_height="2dp"
-                        android:background="#FFFFFF"
-                        android:layout_marginTop="6dp"
-                        android:visibility="visible"/>
-                </LinearLayout>
-
-                <!-- Aba Grupos -->
-                <LinearLayout
-                    android:id="@+id/tabGrupos"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackgroundBorderless">
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@android:drawable/ic_menu_recent_history"
-                        app:tint="#AAAAAA"
-                        android:visibility="gone"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Grupos"
-                        android:textSize="14sp"
-                        android:textColor="#AAAAAA"
-                        android:layout_marginTop="2dp"/>
-
-                    <View
-                        android:id="@+id/indicatorGrupos"
-                        android:layout_width="40dp"
-                        android:layout_height="2dp"
-                        android:background="#FFFFFF"
-                        android:layout_marginTop="6dp"
-                        android:visibility="invisible"/>
-                </LinearLayout>
-
-                <!-- Aba Círculos -->
-                <LinearLayout
-                    android:id="@+id/tabCirculos"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackgroundBorderless">
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@android:drawable/ic_menu_search"
-                        app:tint="#AAAAAA"
-                        android:visibility="gone"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Círculos"
-                        android:textSize="14sp"
-                        android:textColor="#AAAAAA"
-                        android:layout_marginTop="2dp"/>
-
-                    <View
-                        android:id="@+id/indicatorCirculos"
-                        android:layout_width="40dp"
-                        android:layout_height="2dp"
-                        android:background="#FFFFFF"
-                        android:layout_marginTop="6dp"
-                        android:visibility="invisible"/>
-                </LinearLayout>
-
-                <!-- Aba EU -->
-                <LinearLayout
-                    android:id="@+id/tabEu"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackgroundBorderless">
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@android:drawable/ic_menu_info_details"
-                        app:tint="#AAAAAA"
-                        android:visibility="gone"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Eu"
-                        android:textSize="14sp"
-                        android:textColor="#AAAAAA"
-                        android:layout_marginTop="2dp"/>
-
-                    <View
-                        android:id="@+id/indicatorEu"
-                        android:layout_width="40dp"
-                        android:layout_height="2dp"
-                        android:background="#FFFFFF"
-                        android:layout_marginTop="6dp"
-                        android:visibility="invisible"/>
-                </LinearLayout>
-
-                <!-- Botão + -->
-                <ImageView
-                    android:id="@+id/btnAddFriend"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:src="@android:drawable/ic_input_add"
-                    app:tint="#FFFFFF"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="5dp"
-                    android:layout_marginBottom="8dp"/>
-
-            </LinearLayout>
-
+            <!-- NOVA SETA para abrir/fechar -->
+            <ImageView
+                android:id="@+id/btnToggleSheet"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:padding="4dp"
+                android:src="@drawable/ic_arrow_down"
+                app:tint="#8E8E93"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                tools:src="@android:drawable/arrow_up_float"/>
+            <!-- Nota: Certifica-te que tens um drawable ic_arrow_down ou usa um do sistema -->
         </LinearLayout>
 
-        <!-- 3. LISTA (Fundo mais Escuro) -->
+        <!-- Lista -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerFriends"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:paddingTop="5dp"
-            android:background="@drawable/bg_glass_body"
+            android:clipToPadding="false"
+            android:background="#FFFFFF"
             tools:listitem="@layout/item_person_modern"/>
 
+        <!-- NOVO BOTÃO DE ADICIONAR (No fundo da lista) -->
+        <LinearLayout
+            android:id="@+id/btnAddNewFriendAction"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="15dp"
+            android:background="#FFFFFF"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_add_circle"
+                app:tint="#3A8DDE"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Adicionar novo amigo"
+                android:textColor="#3A8DDE"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginStart="10dp"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- 4. BARRA DE NAVEGAÇÃO -->
+    <LinearLayout
+        android:id="@+id/navBarBottom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="85dp"
+        android:background="#FFFFFF"
+        android:elevation="16dp"
+        android:paddingBottom="10dp"
+        android:paddingTop="10dp"
+        android:orientation="horizontal"
+        android:layout_gravity="bottom">
+
+        <!-- Botão PESSOAS -->
+        <LinearLayout
+            android:id="@+id/navPessoas"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconPessoas"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_people"
+                app:tint="#3A8DDE"/>
+            <TextView
+                android:id="@+id/textPessoas"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pessoas"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#3A8DDE"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
+        <!-- Botão GRUPOS -->
+        <LinearLayout
+            android:id="@+id/navGrupos"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconGrupos"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_groups"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textGrupos"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Grupos"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
+        <!-- Botão ZONA -->
+        <LinearLayout
+            android:id="@+id/navZona"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconZona"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_circles"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textZona"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Zona"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
+        <!-- Botão EU -->
+        <LinearLayout
+            android:id="@+id/navEu"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconEu"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_me"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textEu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Eu"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
     </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
