@@ -196,9 +196,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         tabCirculos.setOnClickListener {
             atualizarEstiloAbas(tabCirculos)
-            currentTab = Tab.CIRCLES
-            Toast.makeText(this, "Círculos (Em breve)", Toast.LENGTH_SHORT).show()
+            // currentTab = Tab.CIRCLES // This will be handled by the new activity if needed
+
+            val intent = Intent(this, ZonesActivity::class.java)
+            startActivity(intent)
+
+            // To remove transition animation
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
         }
+
 
         tabEu.setOnClickListener {
             val intent = Intent(this, ProfileActivity::class.java)
