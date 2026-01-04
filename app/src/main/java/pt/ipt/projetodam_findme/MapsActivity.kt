@@ -28,7 +28,13 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
 import androidx.core.app.ActivityCompat
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
@@ -68,6 +74,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // Location client for getting current user's location
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+
+    // Zone polygon reference for color updates
+    private var zonePolygon: Polygon? = null
+
+    // Real-time location tracking
+    private var locationCallback: LocationCallback? = null
+    private var userMarker: Marker? = null
+    private var zonePoints: List<LatLng> = emptyList()
+    private var monitoredUserName: String = "Utilizador"
+    private val handler = Handler(Looper.getMainLooper())
+    private var apiPollingRunnable: Runnable? = null
+    private val LOCATION_UPDATE_INTERVAL = 5000L // 5 seconds
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -188,39 +206,144 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun showZoneOnMap(zone: Zone) {
-        // Draw the zone polygon
-        val points = zone.coordinates.map { LatLng(it.latitude, it.longitude) }
-        if (points.size >= 3) {
-            mMap.addPolygon(
+        // Store zone points for real-time updates
+        zonePoints = zone.coordinates.map { LatLng(it.latitude, it.longitude) }
+
+        // Draw the zone polygon (initial blue color, will be updated based on user location)
+        if (zonePoints.size >= 3) {
+            zonePolygon = mMap.addPolygon(
                 PolygonOptions()
-                    .addAll(points)
+                    .addAll(zonePoints)
                     .strokeColor(Color.parseColor("#3A8DDE"))
                     .fillColor(Color.parseColor("#403A8DDE"))
                     .strokeWidth(4f)
             )
         }
 
-        // Fetch and show monitored user's location
-        fetchMonitoredUserLocation(zone.associatedUserId, points)
+        // Start real-time location tracking
+        startRealTimeLocationTracking(zone.associatedUserId)
     }
 
-    private fun fetchMonitoredUserLocation(monitoredUserId: String, zonePoints: List<LatLng>) {
-        // If monitoring self, get device location
+    /**
+     * Updates the zone polygon color based on whether the user is inside or outside
+     * Green = user is inside the zone
+     * Red = user is outside the zone
+     */
+    private fun updateZonePolygonColor(isUserInside: Boolean) {
+        zonePolygon?.let { polygon ->
+            if (isUserInside) {
+                // Green when inside
+                polygon.strokeColor = Color.parseColor("#4CAF50")
+                polygon.fillColor = Color.parseColor("#404CAF50")
+            } else {
+                // Red when outside
+                polygon.strokeColor = Color.parseColor("#F44336")
+                polygon.fillColor = Color.parseColor("#40F44336")
+            }
+        }
+    }
+
+    /**
+     * Ray casting algorithm to determine if a point is inside a polygon
+     */
+    private fun isPointInPolygon(point: LatLng, polygon: List<LatLng>): Boolean {
+        if (polygon.size < 3) return false
+
+        var inside = false
+        var j = polygon.size - 1
+
+        for (i in polygon.indices) {
+            val xi = polygon[i].longitude
+            val yi = polygon[i].latitude
+            val xj = polygon[j].longitude
+            val yj = polygon[j].latitude
+
+            val intersect = ((yi > point.latitude) != (yj > point.latitude)) &&
+                    (point.longitude < (xj - xi) * (point.latitude - yi) / (yj - yi) + xi)
+
+            if (intersect) inside = !inside
+            j = i
+        }
+
+        return inside
+    }
+
+    /**
+     * Starts real-time location tracking for the monitored user
+     */
+    private fun startRealTimeLocationTracking(monitoredUserId: String) {
+        // Get username from session if monitoring self
+        val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
+        monitoredUserName = if (monitoredUserId == userId) {
+            sharedPreferences.getString("nome_user", "Eu") ?: "Eu"
+        } else {
+            "Utilizador"
+        }
+
         if (monitoredUserId == userId) {
-            fetchCurrentDeviceLocation(zonePoints)
+            // Self-monitoring: Use GPS location updates
+            startSelfLocationUpdates()
+        } else {
+            // Friend-monitoring: Poll API periodically
+            startFriendLocationPolling(monitoredUserId)
+        }
+
+        // Initial zoom to zone
+        zoomToZone()
+    }
+
+    /**
+     * Starts GPS location updates for self-monitoring
+     */
+    private fun startSelfLocationUpdates() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return
         }
 
-        // Otherwise fetch friend's location from API
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, LOCATION_UPDATE_INTERVAL).apply {
+            setMinUpdateIntervalMillis(LOCATION_UPDATE_INTERVAL / 2)
+        }.build()
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { location ->
+                    val userLocation = LatLng(location.latitude, location.longitude)
+                    updateUserLocationOnMap(userLocation)
+                }
+            }
+        }
+
+        fusedLocationClient.requestLocationUpdates(
+            locationRequest,
+            locationCallback!!,
+            Looper.getMainLooper()
+        )
+    }
+
+    /**
+     * Starts periodic API polling for friend location
+     */
+    private fun startFriendLocationPolling(monitoredUserId: String) {
+        apiPollingRunnable = object : Runnable {
+            override fun run() {
+                fetchFriendLocation(monitoredUserId)
+                handler.postDelayed(this, LOCATION_UPDATE_INTERVAL)
+            }
+        }
+        // Start immediately
+        handler.post(apiPollingRunnable!!)
+    }
+
+    /**
+     * Fetches friend location from API
+     */
+    private fun fetchFriendLocation(monitoredUserId: String) {
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_users_locations.php?user_id=$userId"
         val queue = Volley.newRequestQueue(this)
 
         val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
             try {
-                var userLocation: LatLng? = null
-                var userName = "Utilizador"
-
-                // Search in friends list
                 val usersArray = response.optJSONArray("users")
                 if (usersArray != null) {
                     for (i in 0 until usersArray.length()) {
@@ -228,81 +351,94 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                         if (user.getString("id_user") == monitoredUserId) {
                             val lat = user.getDouble("latitude")
                             val lng = user.getDouble("longitude")
-                            userLocation = LatLng(lat, lng)
-                            userName = user.getString("name")
+                            monitoredUserName = user.getString("name")
+                            updateUserLocationOnMap(LatLng(lat, lng))
                             break
                         }
                     }
                 }
-
-                // Show user marker and zoom to fit
-                zoomToFitZoneAndUser(zonePoints, userLocation, userName)
-
             } catch (e: Exception) {
-                Log.e("MapsActivity", "Error fetching user location: ${e.message}")
-                zoomToFitZoneAndUser(zonePoints, null, null)
+                Log.e("MapsActivity", "Error fetching friend location: ${e.message}")
             }
         }, { error ->
             Log.e("MapsActivity", "Volley error: ${error.message}")
-            zoomToFitZoneAndUser(zonePoints, null, null)
         })
 
         queue.add(request)
     }
 
-    private fun fetchCurrentDeviceLocation(zonePoints: List<LatLng>) {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // No permission, just show zone without user marker
-            zoomToFitZoneAndUser(zonePoints, null, null)
-            return
+    /**
+     * Updates the user marker position and polygon color
+     */
+    private fun updateUserLocationOnMap(userLocation: LatLng) {
+        // Update or create marker
+        if (userMarker == null) {
+            userMarker = mMap.addMarker(
+                MarkerOptions()
+                    .position(userLocation)
+                    .title(monitoredUserName)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+            )
+        } else {
+            userMarker?.position = userLocation
         }
 
-        val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
-        val userName = sharedPreferences.getString("nome_user", "Eu") ?: "Eu"
+        // Check if user is inside zone and update polygon color
+        val isInside = isPointInPolygon(userLocation, zonePoints)
+        updateZonePolygonColor(isInside)
+    }
 
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-            if (location != null) {
-                val userLocation = LatLng(location.latitude, location.longitude)
-                zoomToFitZoneAndUser(zonePoints, userLocation, userName)
-            } else {
-                Log.e("MapsActivity", "Device location is null")
-                zoomToFitZoneAndUser(zonePoints, null, null)
-            }
-        }.addOnFailureListener { e ->
-            Log.e("MapsActivity", "Failed to get device location: ${e.message}")
-            zoomToFitZoneAndUser(zonePoints, null, null)
+    /**
+     * Zooms camera to fit the zone
+     */
+    private fun zoomToZone() {
+        if (zonePoints.isEmpty()) return
+
+        try {
+            val boundsBuilder = LatLngBounds.Builder()
+            zonePoints.forEach { boundsBuilder.include(it) }
+            val bounds = boundsBuilder.build()
+            mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
+        } catch (e: Exception) {
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(zonePoints[0], 15f))
         }
     }
 
-    private fun zoomToFitZoneAndUser(zonePoints: List<LatLng>, userLocation: LatLng?, userName: String?) {
-        val boundsBuilder = LatLngBounds.Builder()
-
-        // Add all zone points to bounds
-        zonePoints.forEach { boundsBuilder.include(it) }
-
-        // Add user marker if available
-        if (userLocation != null) {
-            mMap.addMarker(
-                MarkerOptions()
-                    .position(userLocation)
-                    .title(userName ?: "Utilizador")
-                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
-            )
-            boundsBuilder.include(userLocation)
+    /**
+     * Stops real-time location tracking
+     */
+    private fun stopRealTimeLocationTracking() {
+        // Stop GPS updates
+        locationCallback?.let {
+            fusedLocationClient.removeLocationUpdates(it)
+            locationCallback = null
         }
 
-        // Zoom to fit all points
-        try {
-            val bounds = boundsBuilder.build()
-            val padding = 100 // pixels
-            mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding))
-        } catch (e: Exception) {
-            // Fallback if bounds is empty
-            if (zonePoints.isNotEmpty()) {
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(zonePoints[0], 15f))
-            }
+        // Stop API polling
+        apiPollingRunnable?.let {
+            handler.removeCallbacks(it)
+            apiPollingRunnable = null
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (isViewMode) {
+            stopRealTimeLocationTracking()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Resume tracking if we're in view mode and map is ready
+        if (isViewMode && viewZone != null && ::mMap.isInitialized) {
+            startRealTimeLocationTracking(viewZone!!.associatedUserId)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopRealTimeLocationTracking()
     }
 
     private fun addPolygonPoint(latLng: LatLng) {
