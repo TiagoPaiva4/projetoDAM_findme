@@ -1,9 +1,190 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.fragment.app.FragmentContainerView
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/map"
-    android:name="com.google.android.gms.maps.SupportMapFragment"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".MapsActivity" />
+    android:layout_height="match_parent">
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/map"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/navBarBottom"
+        tools:context=".MapsActivity" />
+
+    <!-- Instruction text at top - visible only in create mode -->
+    <TextView
+        android:id="@+id/tvInstruction"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#CC000000"
+        android:padding="12dp"
+        android:text="Toque no mapa para adicionar pontos ao poligono"
+        android:textColor="@android:color/white"
+        android:textAlignment="center"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Drawing controls - visible only in create mode -->
+    <LinearLayout
+        android:id="@+id/drawingControls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:orientation="horizontal"
+        android:background="#CCFFFFFF"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@+id/navBarBottom">
+
+        <Button
+            android:id="@+id/btnUndo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Desfazer"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+        <Button
+            android:id="@+id/btnClear"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="Limpar"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+        <Button
+            android:id="@+id/btnConfirm"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="Confirmar" />
+
+    </LinearLayout>
+
+    <!-- BARRA DE NAVEGACAO (Fixa em baixo) - visible in view mode -->
+    <LinearLayout
+        android:id="@+id/navBarBottom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="85dp"
+        android:background="#FFFFFF"
+        android:elevation="16dp"
+        android:paddingBottom="10dp"
+        android:paddingTop="10dp"
+        android:orientation="horizontal"
+        android:gravity="top"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:id="@+id/navPessoas"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconPessoas"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_people"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textPessoas"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pessoas"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navGrupos"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconGrupos"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_groups"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textGrupos"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Grupos"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navZona"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconZona"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_circles"
+                app:tint="#3A8DDE"/>
+            <TextView
+                android:id="@+id/textZona"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Zona"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#3A8DDE"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navEu"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconEu"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_me"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textEu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Eu"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

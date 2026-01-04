@@ -1,25 +1,187 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ZonesActivity">
+    android:background="#000000">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/zones_recycler_view"
+    <!-- IMAGEM DE FUNDO -->
+    <ImageView
+        android:id="@+id/bgImage"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="8dp" />
+        android:layout_marginBottom="85dp"
+        android:src="@drawable/background_blue"
+        android:scaleType="centerCrop" />
 
+    <!-- CAMADA ESCURA TRANSPARENTE -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="85dp"
+        android:background="#66000000" />
+
+    <!-- AREA DE SCROLL -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        app:layout_constraintBottom_toTopOf="@+id/navBarBottom"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="40dp"
+            android:paddingBottom="20dp">
+
+            <!-- LISTA DE ZONAS -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/zones_recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                tools:itemCount="5"
+                tools:listitem="@layout/item_zone" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- FAB PARA ADICIONAR ZONA -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_add_zone"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentBottom="true"
-        android:layout_margin="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
         android:src="@drawable/ic_add_circle"
-        app:tint="@android:color/white" />
+        app:tint="@android:color/white"
+        app:layout_constraintBottom_toTopOf="@+id/navBarBottom"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-</RelativeLayout>
+    <!-- BARRA DE NAVEGACAO (Fixa em baixo) -->
+    <LinearLayout
+        android:id="@+id/navBarBottom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="85dp"
+        android:background="#FFFFFF"
+        android:elevation="16dp"
+        android:paddingBottom="10dp"
+        android:paddingTop="10dp"
+        android:orientation="horizontal"
+        android:gravity="top"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:id="@+id/navPessoas"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconPessoas"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_people"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textPessoas"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pessoas"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navGrupos"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconGrupos"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_groups"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textGrupos"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Grupos"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navZona"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconZona"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_circles"
+                app:tint="#3A8DDE"/>
+            <TextView
+                android:id="@+id/textZona"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Zona"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#3A8DDE"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navEu"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+            <ImageView
+                android:id="@+id/iconEu"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_nav_me"
+                app:tint="#8E8E93"/>
+            <TextView
+                android:id="@+id/textEu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Eu"
+                android:textSize="10sp"
+                android:textColor="#8E8E93"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
