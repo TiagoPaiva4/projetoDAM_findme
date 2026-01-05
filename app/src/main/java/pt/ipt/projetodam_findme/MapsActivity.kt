@@ -52,7 +52,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     // Mode state
     private var isCreateMode = false
     private var isViewMode = false
+    private var isEditMode = false
     private var viewZone: Zone? = null
+    private var editZone: Zone? = null
 
     // Create mode state
     private val polygonPoints = mutableListOf<LatLng>()
@@ -102,9 +104,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         val mode = intent.getStringExtra("MODE")
         isCreateMode = mode == "CREATE_ZONE"
         isViewMode = mode == "VIEW_ZONE"
-        if (isViewMode) {
+        isEditMode = mode == "EDIT_ZONE"
+        if (isViewMode || isEditMode) {
             @Suppress("DEPRECATION")
-            viewZone = intent.getParcelableExtra("ZONE")
+            val zone = intent.getParcelableExtra<Zone>("ZONE")
+            if (isViewMode) viewZone = zone
+            if (isEditMode) editZone = zone
         }
 
         // Get UI references
@@ -178,7 +183,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
-        if (isCreateMode) {
+        if (isCreateMode || isEditMode) {
             // Show drawing UI
             tvInstruction.visibility = View.VISIBLE
             drawingControls.visibility = View.VISIBLE
@@ -191,9 +196,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             // Fetch friends for target selection
             fetchFriends()
 
-            // Center on user's location or default to Tomar
-            val tomar = LatLng(39.60, -8.41)
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tomar, 14f))
+            if (isEditMode && editZone != null) {
+                // Load existing polygon for editing
+                loadExistingPolygon(editZone!!)
+            } else {
+                // Center on user's location or default to Tomar
+                val tomar = LatLng(39.60, -8.41)
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tomar, 14f))
+            }
         } else if (isViewMode && viewZone != null) {
             // View zone mode - show zone polygon and user location
             showZoneOnMap(viewZone!!)
@@ -205,23 +215,54 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    private fun loadExistingPolygon(zone: Zone) {
+        // Add all existing points to the polygon
+        zone.coordinates.forEach { coord ->
+            val latLng = LatLng(coord.latitude, coord.longitude)
+            addPolygonPoint(latLng)
+        }
+        tvInstruction.text = "Modifique o poligono ou confirme"
+
+        // Zoom to fit the polygon
+        if (zone.coordinates.isNotEmpty()) {
+            val boundsBuilder = LatLngBounds.Builder()
+            zone.coordinates.forEach { boundsBuilder.include(LatLng(it.latitude, it.longitude)) }
+            try {
+                val bounds = boundsBuilder.build()
+                mMap.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
+            } catch (e: Exception) {
+                val first = zone.coordinates[0]
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(first.latitude, first.longitude), 15f))
+            }
+        }
+    }
+
     private fun showZoneOnMap(zone: Zone) {
         // Store zone points for real-time updates
         zonePoints = zone.coordinates.map { LatLng(it.latitude, it.longitude) }
 
-        // Draw the zone polygon (initial blue color, will be updated based on user location)
+        // Draw the zone polygon
+        // Gray color if zone is disabled, blue otherwise
+        val strokeColor = if (zone.isActive) Color.parseColor("#3A8DDE") else Color.parseColor("#808080")
+        val fillColor = if (zone.isActive) Color.parseColor("#403A8DDE") else Color.parseColor("#40808080")
+
         if (zonePoints.size >= 3) {
             zonePolygon = mMap.addPolygon(
                 PolygonOptions()
                     .addAll(zonePoints)
-                    .strokeColor(Color.parseColor("#3A8DDE"))
-                    .fillColor(Color.parseColor("#403A8DDE"))
+                    .strokeColor(strokeColor)
+                    .fillColor(fillColor)
                     .strokeWidth(4f)
             )
         }
 
-        // Start real-time location tracking
-        startRealTimeLocationTracking(zone.associatedUserId)
+        // Only track location if zone is active
+        if (zone.isActive) {
+            startRealTimeLocationTracking(zone.associatedUserId)
+        } else {
+            // Just zoom to zone without tracking
+            zoomToZone()
+        }
     }
 
     /**
@@ -461,16 +502,23 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun redrawPolygon() {
-        currentPolygon?.remove()
-
         if (polygonPoints.size >= 3) {
-            currentPolygon = mMap.addPolygon(
-                PolygonOptions()
-                    .addAll(polygonPoints)
-                    .strokeColor(Color.parseColor("#3A8DDE"))
-                    .fillColor(Color.parseColor("#403A8DDE"))
-                    .strokeWidth(4f)
-            )
+            if (currentPolygon != null) {
+                // Reuse existing polygon - just update its points
+                currentPolygon!!.points = polygonPoints
+            } else {
+                // Create new polygon only if one doesn't exist
+                currentPolygon = mMap.addPolygon(
+                    PolygonOptions()
+                        .addAll(polygonPoints)
+                        .strokeColor(Color.parseColor("#3A8DDE"))
+                        .fillColor(Color.parseColor("#403A8DDE"))
+                        .strokeWidth(4f)
+                )
+            }
+        } else {
+            // Less than 3 points - hide polygon if it exists
+            currentPolygon?.points = emptyList()
         }
     }
 
@@ -498,8 +546,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         polygonPoints.clear()
         markers.forEach { it.remove() }
         markers.clear()
-        currentPolygon?.remove()
+
+        // Clear polygon by setting empty points, then remove
+        currentPolygon?.let { polygon ->
+            polygon.points = emptyList()
+            polygon.remove()
+        }
         currentPolygon = null
+
         updateInstructionText()
     }
 
@@ -557,10 +611,27 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerTarget.adapter = adapter
 
+        // Pre-fill values for edit mode
+        val dialogTitle: String
+        val buttonText: String
+        if (isEditMode && editZone != null) {
+            dialogTitle = "Editar Zona"
+            buttonText = "Atualizar"
+            etZoneName.setText(editZone!!.name)
+            // Find and select the current target user
+            val currentTargetIndex = targetsList.indexOfFirst { it.first == editZone!!.associatedUserId }
+            if (currentTargetIndex >= 0) {
+                spinnerTarget.setSelection(currentTargetIndex)
+            }
+        } else {
+            dialogTitle = "Criar Zona"
+            buttonText = "Guardar"
+        }
+
         AlertDialog.Builder(this)
-            .setTitle("Criar Zona")
+            .setTitle(dialogTitle)
             .setView(dialogView)
-            .setPositiveButton("Guardar") { _, _ ->
+            .setPositiveButton(buttonText) { _, _ ->
                 val name = etZoneName.text.toString().trim()
                 if (name.isEmpty()) {
                     Toast.makeText(this, "Por favor insira um nome para a zona", Toast.LENGTH_SHORT).show()
@@ -572,7 +643,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 } else {
                     userId
                 }
-                saveZone(name, targetId)
+                if (isEditMode && editZone != null) {
+                    updateZone(editZone!!.id, name, targetId)
+                } else {
+                    saveZone(name, targetId)
+                }
             }
             .setNegativeButton("Cancelar", null)
             .show()
@@ -618,6 +693,60 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 val statusCode = error.networkResponse?.statusCode
                 val responseBody = error.networkResponse?.data?.let { String(it) }
                 Log.e("MapsActivity", "Error saving zone - Status: $statusCode, Body: $responseBody, Message: ${error.message}")
+                Toast.makeText(this, "Erro: $statusCode - ${responseBody ?: error.message ?: "conexao"}", Toast.LENGTH_LONG).show()
+            }
+        ) {
+            override fun getBody(): ByteArray {
+                return jsonBody.toString().toByteArray(Charsets.UTF_8)
+            }
+
+            override fun getBodyContentType(): String {
+                return "application/json; charset=utf-8"
+            }
+        }
+
+        queue.add(request)
+    }
+
+    private fun updateZone(zoneId: String, name: String, targetUserId: String) {
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/update_area.php"
+        val queue = Volley.newRequestQueue(this)
+
+        // Build coordinates JSON array
+        val coordsArray = JSONArray()
+        for (point in polygonPoints) {
+            val obj = JSONObject()
+            obj.put("lat", point.latitude)
+            obj.put("lng", point.longitude)
+            coordsArray.put(obj)
+        }
+
+        val jsonBody = JSONObject()
+        jsonBody.put("id", zoneId)
+        jsonBody.put("name", name)
+        jsonBody.put("user_id", targetUserId)
+        jsonBody.put("coordinates", coordsArray.toString())
+
+        val request = object : StringRequest(Request.Method.POST, url,
+            { response ->
+                try {
+                    val json = JSONObject(response)
+                    if (json.has("success")) {
+                        Toast.makeText(this, "Zona atualizada com sucesso!", Toast.LENGTH_SHORT).show()
+                        finish() // Return to ZonesActivity
+                    } else {
+                        val error = json.optString("error", "Erro desconhecido")
+                        Toast.makeText(this, "Erro: $error", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Log.e("MapsActivity", "Error parsing response: ${e.message}")
+                    Toast.makeText(this, "Erro ao processar resposta", Toast.LENGTH_SHORT).show()
+                }
+            },
+            { error ->
+                val statusCode = error.networkResponse?.statusCode
+                val responseBody = error.networkResponse?.data?.let { String(it) }
+                Log.e("MapsActivity", "Error updating zone - Status: $statusCode, Body: $responseBody, Message: ${error.message}")
                 Toast.makeText(this, "Erro: $statusCode - ${responseBody ?: error.message ?: "conexao"}", Toast.LENGTH_LONG).show()
             }
         ) {

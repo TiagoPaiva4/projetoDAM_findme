@@ -3,7 +3,11 @@ package pt.ipt.projetodam_findme
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.LinearLayout
+import android.widget.PopupMenu
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -11,9 +15,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.Request
 import com.android.volley.toolbox.JsonObjectRequest
+import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.json.JSONArray
+import org.json.JSONObject
 
 class ZonesActivity : AppCompatActivity() {
 
@@ -34,12 +40,19 @@ class ZonesActivity : AppCompatActivity() {
         // Setup RecyclerView
         zonesRecyclerView = findViewById(R.id.zones_recycler_view)
         zonesRecyclerView.layoutManager = LinearLayoutManager(this)
-        zonesAdapter = ZonesAdapter(zonesList, this) { zone ->
-            val intent = Intent(this, MapsActivity::class.java)
-            intent.putExtra("MODE", "VIEW_ZONE")
-            intent.putExtra("ZONE", zone)
-            startActivity(intent)
-        }
+        zonesAdapter = ZonesAdapter(
+            zonesList,
+            this,
+            onZoneClick = { zone ->
+                val intent = Intent(this, MapsActivity::class.java)
+                intent.putExtra("MODE", "VIEW_ZONE")
+                intent.putExtra("ZONE", zone)
+                startActivity(intent)
+            },
+            onZoneLongClick = { zone, view ->
+                showZoneOptionsMenu(zone, view)
+            }
+        )
         zonesRecyclerView.adapter = zonesAdapter
 
         // Setup FAB
@@ -123,8 +136,9 @@ class ZonesActivity : AppCompatActivity() {
                         val areaUserId = areaObj.getString("user_id")
                         val coordsJson = areaObj.getString("coordinates")
                         val coordinates = parseCoordinates(coordsJson)
+                        val isActive = areaObj.optInt("is_active", 1) == 1
 
-                        zonesList.add(Zone(id, name, adminId, areaUserId, coordinates))
+                        zonesList.add(Zone(id, name, adminId, areaUserId, coordinates, isActive))
                     }
                 }
                 zonesAdapter.notifyDataSetChanged()
@@ -151,5 +165,123 @@ class ZonesActivity : AppCompatActivity() {
             Log.e("ZonesActivity", "Error parsing coordinates: ${e.message}")
         }
         return list
+    }
+
+    private fun showZoneOptionsMenu(zone: Zone, anchorView: View) {
+        val popup = PopupMenu(this, anchorView)
+        popup.menuInflater.inflate(R.menu.menu_zone_options, popup.menu)
+
+        // Update toggle text based on current state
+        val toggleItem = popup.menu.findItem(R.id.action_toggle)
+        toggleItem.title = if (zone.isActive) "Desativar" else "Ativar"
+
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_edit -> {
+                    openEditZone(zone)
+                    true
+                }
+                R.id.action_delete -> {
+                    confirmDeleteZone(zone)
+                    true
+                }
+                R.id.action_toggle -> {
+                    toggleZoneStatus(zone)
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
+    }
+
+    private fun openEditZone(zone: Zone) {
+        val intent = Intent(this, MapsActivity::class.java)
+        intent.putExtra("MODE", "EDIT_ZONE")
+        intent.putExtra("ZONE", zone)
+        startActivity(intent)
+    }
+
+    private fun confirmDeleteZone(zone: Zone) {
+        AlertDialog.Builder(this)
+            .setTitle("Eliminar Zona")
+            .setMessage("Tem a certeza que pretende eliminar a zona \"${zone.name}\"?")
+            .setPositiveButton("Eliminar") { _, _ ->
+                deleteZone(zone)
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun deleteZone(zone: Zone) {
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/delete_area.php"
+        val queue = Volley.newRequestQueue(this)
+
+        val jsonBody = JSONObject()
+        jsonBody.put("id", zone.id)
+
+        val request = object : StringRequest(Request.Method.POST, url,
+            { response ->
+                try {
+                    val json = JSONObject(response)
+                    if (json.has("success")) {
+                        Toast.makeText(this, "Zona eliminada", Toast.LENGTH_SHORT).show()
+                        fetchZones()
+                    } else {
+                        val error = json.optString("error", "Erro desconhecido")
+                        Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Log.e("ZonesActivity", "Error parsing response: ${e.message}")
+                    Toast.makeText(this, "Erro ao processar resposta", Toast.LENGTH_SHORT).show()
+                }
+            },
+            { error ->
+                Log.e("ZonesActivity", "Volley error: ${error.message}")
+                Toast.makeText(this, "Erro de conexao", Toast.LENGTH_SHORT).show()
+            }
+        ) {
+            override fun getBody() = jsonBody.toString().toByteArray(Charsets.UTF_8)
+            override fun getBodyContentType() = "application/json; charset=utf-8"
+        }
+
+        queue.add(request)
+    }
+
+    private fun toggleZoneStatus(zone: Zone) {
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/toggle_area_status.php"
+        val queue = Volley.newRequestQueue(this)
+
+        val jsonBody = JSONObject()
+        jsonBody.put("id", zone.id)
+        jsonBody.put("is_active", !zone.isActive)
+
+        val request = object : StringRequest(Request.Method.POST, url,
+            { response ->
+                try {
+                    val json = JSONObject(response)
+                    if (json.has("success")) {
+                        val statusText = if (!zone.isActive) "ativada" else "desativada"
+                        Toast.makeText(this, "Zona $statusText", Toast.LENGTH_SHORT).show()
+                        fetchZones()
+                    } else {
+                        val error = json.optString("error", "Erro desconhecido")
+                        Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Log.e("ZonesActivity", "Error parsing response: ${e.message}")
+                    Toast.makeText(this, "Erro ao processar resposta", Toast.LENGTH_SHORT).show()
+                }
+            },
+            { error ->
+                Log.e("ZonesActivity", "Volley error: ${error.message}")
+                Toast.makeText(this, "Erro de conexao", Toast.LENGTH_SHORT).show()
+            }
+        ) {
+            override fun getBody() = jsonBody.toString().toByteArray(Charsets.UTF_8)
+            override fun getBodyContentType() = "application/json; charset=utf-8"
+        }
+
+        queue.add(request)
     }
 }

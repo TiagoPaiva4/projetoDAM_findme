@@ -15,5 +15,6 @@ data class Zone(
     val name: String,
     val adminId: String,
     val associatedUserId: String,
-    val coordinates: List<LatLng>
+    val coordinates: List<LatLng>,
+    val isActive: Boolean = true
 ) : Parcelable
