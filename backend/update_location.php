@@ -1,5 +1,6 @@
 <?php
 require_once 'db.php';
+require_once 'services/NotificationHelper.php';
 
 // Function to check if a point is inside a polygon
 function isPointInPolygon($point, $polygon) {
@@ -114,12 +115,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $notification_message = "{$user_id} saiu da área '{$area_name}'.";
                     }
 
-                    // TODO: Implement actual push notification to $admin_id
+                    // Send email notification to admin
                     if (!empty($notification_message)) {
                         error_log(
                             "GEOTRACKING_NOTIFICATION to admin {$admin_id}: " .
                             $notification_message
                         );
+
+                        try {
+                            $notificationHelper = new NotificationHelper($pdo);
+                            $notificationHelper->sendGeofenceNotification(
+                                $area_id,
+                                $admin_id,
+                                $user_id,
+                                $area_name,
+                                $current_status,
+                                $last_status
+                            );
+                        } catch (Exception $e) {
+                            error_log("Email notification error: " . $e->getMessage());
+                        }
                     }
                 }
 
