@@ -14,6 +14,11 @@ import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import org.json.JSONObject
 import java.nio.charset.Charset
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.SignInButton
+import com.google.android.gms.common.api.ApiException
 
 class LoginActivity : AppCompatActivity() {
 
@@ -21,6 +26,13 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var editPassword: EditText
     private lateinit var btnLogin: Button
     private lateinit var txtRegister: TextView
+    private lateinit var btnGoogleSignIn: SignInButton
+    private lateinit var googleSignInClient: GoogleSignInClient
+
+    companion object { // <-- Add this block
+        private const val RC_SIGN_IN = 9001
+        }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,12 +42,27 @@ class LoginActivity : AppCompatActivity() {
         editPassword = findViewById(R.id.editPassword)
         btnLogin = findViewById(R.id.btnLogin)
         txtRegister = findViewById(R.id.txtRegister)
+        btnGoogleSignIn = findViewById(R.id.btnGoogleSignIn)
+
+        // Configure Google Sign-In
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        .requestIdToken("1050226007080-844dg6rmgu34vgp5l4ra78fdm69taa2b.apps.googleusercontent.com") // <-- IMPORTANT
+        .requestEmail()
+        .build()
+
+        googleSignInClient = GoogleSignIn.getClient(this, gso)
 
         btnLogin.setOnClickListener { loginUser() }
 
         txtRegister.setOnClickListener {
             startActivity(Intent(this, RegisterActivity::class.java))
         }
+
+        btnGoogleSignIn.setOnClickListener {
+            signIn()
+        }
+
+
     }
 
     private fun loginUser() {
@@ -128,4 +155,76 @@ class LoginActivity : AppCompatActivity() {
 
         Volley.newRequestQueue(this).add(request)
     }
+    private fun signIn() {
+        val signInIntent = googleSignInClient.signInIntent
+        startActivityForResult(signInIntent, RC_SIGN_IN)
+    }
+
+
+
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == RC_SIGN_IN) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                val idToken = account.idToken
+                if (idToken != null) {
+                    sendTokenToBackend(idToken)
+                } else {
+                    Toast.makeText(this, "Erro: token não recebido", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: ApiException) {
+                Log.w("LoginActivity", "Google sign in failed", e)
+                Toast.makeText(this, "Google Sign-In falhou: ${e.statusCode}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun sendTokenToBackend(idToken: String) {
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/google_auth.php"
+
+        val jsonBody = JSONObject().apply {
+            put("id_token", idToken)
+        }
+
+        val request = JsonObjectRequest(
+            Request.Method.POST,
+            url,
+            jsonBody,
+            { response ->
+                if (response.has("error")) {
+                    Toast.makeText(this, response.getString("error"), Toast.LENGTH_LONG).show()
+                } else {
+                    val token = response.optString("token")
+                    val userObj = response.getJSONObject("user")
+                    val userId = userObj.getInt("id")
+                    val userName = userObj.getString("name")
+                    val userEmail = userObj.getString("email")
+
+                    val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
+                    sharedPreferences.edit {
+                        putBoolean("logado", true)
+                        putInt("id_user", userId)
+                        putString("nome_user", userName)
+                        putString("email_user", userEmail)
+                        putString("token", token)
+                    }
+
+                    Toast.makeText(this, "Bem-vindo, $userName!", Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(this, MainActivity::class.java))
+                    finish()
+                }
+            },
+            { error ->
+                Toast.makeText(this, "Erro de conexão", Toast.LENGTH_SHORT).show()
+                error.printStackTrace()
+            }
+        )
+
+        Volley.newRequestQueue(this).add(request)
+    }
 }
+
