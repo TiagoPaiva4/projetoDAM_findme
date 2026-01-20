@@ -30,7 +30,7 @@ Traditional Activity-based architecture without MVVM. Activities handle UI, busi
 
 **Main Activities:**
 - `MainActivity` - Map view with friends list, tab navigation, real-time location markers
-- `LoginActivity`/`RegisterActivity` - Authentication
+- `LoginActivity`/`RegisterActivity` - Authentication (email/password + Google Sign-In)
 - `GroupsActivity`/`GroupDetailsActivity` - Group management and member tracking
 - `ProfileActivity` - User settings, location sharing toggle, pending requests
 - `ZonesActivity` - Lists user's geofenced zones with CRUD operations (long-press for options menu)
@@ -56,7 +56,7 @@ Full CRUD for polygon geofences:
 ### Backend Structure (`/backend`)
 
 PHP APIs with Azure MySQL database. Key endpoints:
-- Auth: `login.php`, `register.php`, `logout.php`
+- Auth: `login.php`, `register.php`, `logout.php`, `google_auth.php` (Google Sign-In)
 - Location: `update_location.php`, `get_users_locations.php`, `get_group_locations.php`
 - Friends: `add_friend.php`, `get_pending_requests.php`, `accept_request.php`
 - Groups: `create_group.php`, `get_my_groups.php`, `add_group_member.php`, `remove_group_member.php`
@@ -72,6 +72,7 @@ API Base URL: `https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebs
 
 ## Key Configuration
 
+- **Google Sign-In:** Requires Web Application OAuth client ID in `LoginActivity.kt` (configured in Google Cloud Console)
 - **Google Maps API Key:** In `AndroidManifest.xml`
 - **Cleartext Traffic:** Enabled (`usesCleartextTraffic="true"`)
 - **Permissions:** Internet, fine/coarse location, foreground service, notifications
