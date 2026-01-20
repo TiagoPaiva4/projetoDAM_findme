@@ -52,6 +52,11 @@ dependencies {
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     // GPS e Localização (vamos precisar a seguir)
     implementation("com.google.android.gms:play-services-location:21.0.1")
+<<<<<<< HEAD
 
     implementation("com.github.Dimezis:BlurView:version-2.0.3")
+=======
+    //google auth
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
+>>>>>>> auth_check
 }
