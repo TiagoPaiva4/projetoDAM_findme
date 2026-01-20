@@ -46,7 +46,7 @@ class LoginActivity : AppCompatActivity() {
 
         // Configure Google Sign-In
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken("1050226007080-ch5u5u0vv2n1sde2psbkbk2ooi9plq3v.apps.googleusercontent.com") // <-- IMPORTANT
+        .requestIdToken("1050226007080-844dg6rmgu34vgp5l4ra78fdm69taa2b.apps.googleusercontent.com") // <-- IMPORTANT
         .requestEmail()
         .build()
 
@@ -160,24 +160,65 @@ class LoginActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        // Result returned from launching the Intent from GoogleSignInClient.getSignInIntent(...);
         if (requestCode == RC_SIGN_IN) {
             val task = GoogleSignIn.getSignedInAccountFromIntent(data)
             try {
-                // Google Sign In was successful, authenticate with Firebase
                 val account = task.getResult(ApiException::class.java)
-                Log.d("LoginActivity", "firebaseAuthWithGoogle:" + account.id)
-                // Here you would typically send the ID token to your backend
-                // for verification and user authentication/registration.
-                // For now, let's just show a toast with the ID token.
-                Toast.makeText(this, "Google Sign-In successful. ID Token: ${account.idToken}", Toast.LENGTH_LONG).show()
-
+                val idToken = account.idToken
+                if (idToken != null) {
+                    sendTokenToBackend(idToken)
+                } else {
+                    Toast.makeText(this, "Erro: token não recebido", Toast.LENGTH_SHORT).show()
+                }
             } catch (e: ApiException) {
-                // Google Sign In failed, update UI appropriately
                 Log.w("LoginActivity", "Google sign in failed", e)
-                Toast.makeText(this, "Google Sign-In failed: ${e.statusCode}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Google Sign-In falhou: ${e.statusCode}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun sendTokenToBackend(idToken: String) {
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/google_auth.php"
+
+        val jsonBody = JSONObject().apply {
+            put("id_token", idToken)
+        }
+
+        val request = JsonObjectRequest(
+            Request.Method.POST,
+            url,
+            jsonBody,
+            { response ->
+                if (response.has("error")) {
+                    Toast.makeText(this, response.getString("error"), Toast.LENGTH_LONG).show()
+                } else {
+                    val token = response.optString("token")
+                    val userObj = response.getJSONObject("user")
+                    val userId = userObj.getInt("id")
+                    val userName = userObj.getString("name")
+                    val userEmail = userObj.getString("email")
+
+                    val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
+                    sharedPreferences.edit {
+                        putBoolean("logado", true)
+                        putInt("id_user", userId)
+                        putString("nome_user", userName)
+                        putString("email_user", userEmail)
+                        putString("token", token)
+                    }
+
+                    Toast.makeText(this, "Bem-vindo, $userName!", Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(this, MainActivity::class.java))
+                    finish()
+                }
+            },
+            { error ->
+                Toast.makeText(this, "Erro de conexão", Toast.LENGTH_SHORT).show()
+                error.printStackTrace()
+            }
+        )
+
+        Volley.newRequestQueue(this).add(request)
     }
 }
 
