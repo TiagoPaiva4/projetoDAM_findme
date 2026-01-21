@@ -518,7 +518,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         } else {
             // Less than 3 points - hide polygon if it exists
-            currentPolygon?.points = emptyList()
+            currentPolygon?.remove()
+            currentPolygon = null
         }
     }
 
