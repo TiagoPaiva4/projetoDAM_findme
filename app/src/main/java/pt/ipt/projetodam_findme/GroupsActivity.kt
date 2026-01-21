@@ -81,7 +81,10 @@ class GroupsActivity : AppCompatActivity() {
 
         // Botão ZONA
         findViewById<LinearLayout>(R.id.navZona).setOnClickListener {
-            Toast.makeText(this, "Zona: Em breve", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, ZonesActivity::class.java)
+            startActivity(intent)
+            overridePendingTransition(0, 0)
+            finish()
         }
 
         // Botão EU -> Vai para ProfileActivity
