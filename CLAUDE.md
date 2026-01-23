@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FindMe is an Android location-sharing app that allows users to track and share their real-time location.
+FindMe is an Android location-sharing app that allows users to track and share their real-time location with friends and groups.
 
 **Tech Stack:** Kotlin, Android SDK (API 24-36), Volley (HTTP), Google Maps/Location Services, Google Sign-In, PHP backend with Azure MySQL.
 
@@ -24,23 +24,49 @@ FindMe is an Android location-sharing app that allows users to track and share t
 
 ### Android App (`app/src/main/java/pt/ipt/projetodam_findme/`)
 
+**Activities:**
+
 | Activity | Purpose |
 |----------|---------|
-| `MainActivity` | Main map view with real-time GPS tracking, sends location updates to backend when user moves >= 30m |
-| `LoginActivity` | Email/password login + Google Sign-In (in progress) |
+| `MainActivity` | Main map view, starts LocationService, bottom navbar |
+| `LoginActivity` | Email/password login + Google Sign-In |
 | `RegisterActivity` | User registration with backend validation |
-| `ProfileActivity` | User profile with satellite map view (18x zoom) |
-| `MapsActivity` | Basic map display (placeholder for future features) |
+| `ProfileActivity` | User profile with satellite map view |
+| `GroupsActivity` | List user's groups, create new groups |
+| `GroupDetailsActivity` | View group members, add/remove members, see member locations |
+| `CreateGroupActivity` | Create a new group |
+| `AddFriendActivity` | Send friend requests by email |
+| `AddMemberActivity` | Add friends to a group |
+
+**Services:**
+
+| Service | Purpose |
+|---------|---------|
+| `LocationService` | Foreground service for continuous GPS tracking, sends updates to backend |
+| `NotificationService` | Handles notification channels and alerts |
+
+**Adapters:** `FriendsAdapter`, `GroupsAdapter`, `RequestsAdapter` - RecyclerView adapters for lists.
 
 ### Backend (`/backend`)
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `login.php` | POST | Auth with email/password, returns 64-char token (1-hour expiry) |
+| `google_auth.php` | POST | Google Sign-In token verification, creates user if new |
 | `register.php` | POST | User registration with bcrypt password hashing |
 | `logout.php` | POST | Token invalidation via Authorization header |
 | `update_location.php` | POST | Location updates (user_id, latitude, longitude) |
-| `db.php` | - | PDO connection to Azure MySQL (`findme.mysql.database.azure.com`) |
+| `get_users_locations.php` | POST | Get locations of user's friends |
+| `add_friend.php` | POST | Send friend request by email |
+| `get_pending_requests.php` | POST | Get pending friend requests |
+| `accept_request.php` | POST | Accept/decline friend request |
+| `create_group.php` | POST | Create a new group |
+| `get_my_groups.php` | POST | Get user's groups |
+| `get_group_locations.php` | POST | Get locations of group members |
+| `add_group_member.php` | POST | Add member to group |
+| `remove_group_member.php` | POST | Remove member from group |
+| `db.php` | - | PDO connection to Azure MySQL |
+| `config.php` | - | SMTP config for email notifications (not in git) |
 
 ### Session Management
 
@@ -61,30 +87,23 @@ val request = JsonObjectRequest(Request.Method.POST, url, jsonBody,
     { error -> /* handle error */ }
 )
 Volley.newRequestQueue(this).add(request)
-
-// POST with form data
-val request = object : StringRequest(Request.Method.POST, url, ...) {
-    override fun getParams() = mutableMapOf("key" to "value")
-}
 ```
 
 **API Base URL:** `https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/`
 
-### Location Tracking (MainActivity)
+### Location Tracking
 
+`LocationService` runs as a foreground service:
 - Uses `FusedLocationProviderClient` for GPS
-- Updates every 10 seconds, minimum 5 seconds, 10-meter displacement
-- Only sends to backend when moved >= 30 meters (battery optimization)
+- Receives `USER_ID` via Intent extra when started
+- Runs continuously until explicitly stopped
+- Shows persistent notification while tracking
 
 ### Database Tables
 
-- `users` - id_user, name, email, password_hash
+- `users` - id_user, name, email, password_hash (or 'GOOGLE_AUTH' for Google users)
 - `user_tokens` - token (64-char), id_user, expires_at
 - `locations` - id_user, latitude, longitude, last_update
-
-## Current Branch: `auth_check`
-
-Implements Google Sign-In in `LoginActivity.kt`:
-- Uses `play-services-auth:20.7.0`
-- Client ID: `1050226007080-ch5u5u0vv2n1sde2psbkbk2ooi9plq3v.apps.googleusercontent.com`
-- **Incomplete:** Captures ID token but doesn't send to backend for verification/user creation
+- `friends` - friendship relationships and pending requests
+- `groups` - group id, name, creator
+- `group_members` - group membership mapping
