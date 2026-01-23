@@ -9,21 +9,25 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.location.Location
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.Request
@@ -52,7 +56,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var userId: String
     private var lastSentLocation: Location? = null
-    // private var isFirstLocation = true // Não usado atualmente
 
     private lateinit var recyclerFriends: RecyclerView
     private val friendsList = ArrayList<Friend>()
@@ -99,6 +102,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFragment = supportFragmentManager.findFragmentById(R.id.mapMain) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
+        // A verificação de permissão é feita aqui
         checkLocationPermission()
     }
 
@@ -122,7 +126,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         sheetBehavior.peekHeight = dpToPx(240)
         sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
 
-        // --- Lógica da Seta (Toggle) ---
         val btnToggle = findViewById<ImageView>(R.id.btnToggleSheet)
 
         sheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
@@ -146,7 +149,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         recyclerFriends = findViewById(R.id.recyclerFriends)
         recyclerFriends.layoutManager = LinearLayoutManager(this)
 
-        // [CORREÇÃO] Passamos o addFriendListener aqui
         adapter = FriendsAdapter(
             friendsList = friendsList,
             clickListener = { friend ->
@@ -160,8 +162,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             addFriendListener = { handleAddButtonClick() }
         )
         recyclerFriends.adapter = adapter
-
-        // O botão antigo btnAddNewFriendAction já não existe no XML da Activity, foi removido.
 
         // Inicializar NavItems
         tabPessoas = findViewById(R.id.navPessoas)
@@ -189,28 +189,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             currentTab = Tab.GROUPS
             val intent = Intent(this, GroupsActivity::class.java)
             startActivity(intent)
-            // [CORREÇÃO] Suprimir depreciação
             @Suppress("DEPRECATION")
             overridePendingTransition(0, 0)
         }
 
         tabCirculos.setOnClickListener {
             atualizarEstiloAbas(tabCirculos)
-            // currentTab = Tab.CIRCLES // This will be handled by the new activity if needed
-
             val intent = Intent(this, ZonesActivity::class.java)
             startActivity(intent)
-
-            // To remove transition animation
             @Suppress("DEPRECATION")
             overridePendingTransition(0, 0)
         }
 
-
         tabEu.setOnClickListener {
             val intent = Intent(this, ProfileActivity::class.java)
             startActivity(intent)
-            // [CORREÇÃO] Suprimir depreciação
             @Suppress("DEPRECATION")
             overridePendingTransition(0, 0)
         }
@@ -226,14 +219,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun atualizarEstiloAbas(abaSelecionada: LinearLayout) {
         val listaAbas = listOf(tabPessoas, tabGrupos, tabCirculos, tabEu)
-
         val corAtiva = Color.parseColor("#3A8DDE")
         val corInativa = Color.parseColor("#8E8E93")
 
         for (aba in listaAbas) {
             val icon = aba.getChildAt(0) as ImageView
             val text = aba.getChildAt(1) as TextView
-
             if (aba == abaSelecionada) {
                 icon.setColorFilter(corAtiva)
                 text.setTextColor(corAtiva)
@@ -251,31 +242,40 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return (dp * density).toInt()
     }
 
-    private fun criarIconeCircular(nome: String): BitmapDescriptor {
-        val width = 120
-        val height = 120
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    // --- FUNÇÃO DO MARCADOR PERSONALIZADO ---
+    private fun getCustomMarkerBitmap(nome: String): BitmapDescriptor {
+        val view = LayoutInflater.from(this).inflate(R.layout.layout_custom_marker, null)
+        val textView = view.findViewById<TextView>(R.id.marker_text)
+
+        val nomeLimpo = nome.trim()
+        val partes = nomeLimpo.split("\\s+".toRegex())
+
+        val sigla = if (partes.size >= 2) {
+            val letra1 = partes[0].firstOrNull()?.toString() ?: ""
+            val letra2 = partes[1].firstOrNull()?.toString() ?: ""
+            (letra1 + letra2).uppercase()
+        } else {
+            if (nomeLimpo.length >= 2) {
+                nomeLimpo.substring(0, 2).uppercase()
+            } else {
+                nomeLimpo.uppercase()
+            }
+        }
+
+        textView.text = sigla
+
+        val spec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        view.measure(spec, spec)
+        view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+
+        val bitmap = Bitmap.createBitmap(view.measuredWidth, view.measuredHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val paint = Paint()
-
-        paint.color = Color.parseColor("#444444")
-        paint.style = Paint.Style.FILL
-        paint.isAntiAlias = true
-        canvas.drawCircle(width / 2f, height / 2f, width / 2f, paint)
-
-        paint.color = Color.WHITE
-        paint.textSize = 60f
-        paint.textAlign = Paint.Align.CENTER
-        paint.typeface = Typeface.DEFAULT_BOLD
-
-        val xPos = width / 2f
-        val yPos = (height / 2f) - ((paint.descent() + paint.ascent()) / 2)
-        val letra = if (nome.isNotEmpty()) nome.first().toString().uppercase() else "?"
-
-        canvas.drawText(letra, xPos, yPos, paint)
+        view.draw(canvas)
 
         return BitmapDescriptorFactory.fromBitmap(bitmap)
     }
+
+    // --- LÓGICA DE PERMISSÕES ATUALIZADA ---
 
     private fun checkLocationPermission() {
         val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -290,6 +290,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (permissionsToRequest.isEmpty()) {
             startLocationUpdates()
         } else {
+            // Se já foi negado anteriormente, podemos mostrar o aviso antes de pedir
             ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), permissionRequestCode)
         }
     }
@@ -297,16 +298,46 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == permissionRequestCode) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+
+            // Verifica se a permissão de localização foi concedida
+            val locationPermissionIndex = permissions.indexOf(Manifest.permission.ACCESS_FINE_LOCATION)
+
+            if (locationPermissionIndex != -1 && grantResults[locationPermissionIndex] == PackageManager.PERMISSION_GRANTED) {
+                // Sucesso
                 startLocationUpdates()
                 if (::mMap.isInitialized) enableBlueDot()
+            } else {
+                // NEGADO: Mostrar Alerta
+                showPermissionDeniedDialog()
             }
         }
     }
 
+    // NOVA FUNÇÃO: Mostra o alerta se o user disser "Não"
+    private fun showPermissionDeniedDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Permissão de GPS Necessária")
+            .setMessage("O FindMe precisa da sua localização para funcionar e mostrar os seus amigos no mapa.\n\nPor favor, ative a permissão nas definições.")
+            .setCancelable(false) // Impede fechar tocando fora
+            .setPositiveButton("Ir às Definições") { _, _ ->
+                try {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    val uri = Uri.fromParts("package", packageName, null)
+                    intent.data = uri
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            .setNegativeButton("Sair") { dialog, _ ->
+                dialog.dismiss()
+                finish() // Fecha a app porque sem GPS não funciona
+            }
+            .show()
+    }
+
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
-
         mMap.mapType = GoogleMap.MAP_TYPE_HYBRID
 
         mMap.uiSettings.apply {
@@ -353,7 +384,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { currentLocation ->
                     lastSentLocation = currentLocation
-                    // Continua a atualizar a lista de amigos
                     if (currentTab == Tab.PEOPLE) buscarAmigos()
                 }
             }
@@ -383,11 +413,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     val lastUpd = userObj.optString("last_update", "Desconhecido")
 
                     val friendPos = LatLng(lat, lon)
+
                     val marker = mMap.addMarker(MarkerOptions()
                         .position(friendPos)
                         .title(name)
-                        .icon(criarIconeCircular(name))
+                        .icon(getCustomMarkerBitmap(name))
                         .anchor(0.5f, 0.5f))
+
                     if (marker != null) markersMap[friendId] = marker
 
                     val results = FloatArray(1)

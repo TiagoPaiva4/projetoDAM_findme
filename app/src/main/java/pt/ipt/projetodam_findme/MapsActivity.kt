@@ -762,4 +762,25 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         queue.add(request)
     }
+
+    // Função para converter o layout XML em Bitmap
+    private fun getCustomMarkerBitmap(text: String): android.graphics.Bitmap {
+        val view = android.view.LayoutInflater.from(this).inflate(R.layout.layout_custom_marker, null)
+        val textView = view.findViewById<android.widget.TextView>(R.id.marker_text)
+
+        // Define a letra (ex: primeira letra do nome)
+        textView.text = text
+
+        // Obriga a view a desenhar-se para sabermos o tamanho
+        view.measure(android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED),
+            android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED))
+        view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+
+        // Cria o bitmap
+        val bitmap = android.graphics.Bitmap.createBitmap(view.measuredWidth, view.measuredHeight, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        view.draw(canvas)
+
+        return bitmap
+    }
 }
