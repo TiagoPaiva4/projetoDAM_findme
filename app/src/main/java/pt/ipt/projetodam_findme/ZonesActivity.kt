@@ -141,6 +141,8 @@ class ZonesActivity : AppCompatActivity() {
                         zonesList.add(Zone(id, name, adminId, areaUserId, coordinates, isActive))
                     }
                 }
+                // Sort: active zones first, inactive at the bottom
+                zonesList.sortBy { !it.isActive }
                 zonesAdapter.notifyDataSetChanged()
 
             } catch (e: Exception) {

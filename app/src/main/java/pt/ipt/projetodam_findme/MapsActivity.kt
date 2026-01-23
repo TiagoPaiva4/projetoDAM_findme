@@ -194,6 +194,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
+        mMap.mapType = GoogleMap.MAP_TYPE_SATELLITE
 
         if (isCreateMode || isEditMode) {
             // Show drawing UI
