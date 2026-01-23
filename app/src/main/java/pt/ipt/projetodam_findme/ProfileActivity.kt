@@ -185,7 +185,10 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         findViewById<LinearLayout>(R.id.navZona).setOnClickListener {
-            Toast.makeText(this, "Zona: Em breve", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, ZonesActivity::class.java)
+            startActivity(intent)
+            overridePendingTransition(0, 0)
+            finish()
         }
 
         // Opcional: Se clicares no "EU" (onde já estás), podes apenas fazer scroll para o topo
