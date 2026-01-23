@@ -1,0 +1,603 @@
+================================================================================
+                    GOOGLE SIGN-IN IMPLEMENTATION REPORT
+================================================================================
+
+Branch: auth_check
+Date: 2026-01-20
+Author: Development Team
+
+================================================================================
+                              TABLE OF CONTENTS
+================================================================================
+
+1. Overview
+2. Files Involved
+3. Prerequisites (Google Cloud Console Setup)
+4. Step-by-Step Flow Explanation
+5. Detailed Code Explanation
+   5.1 LoginActivity.kt - Android Side
+   5.2 google_auth.php - Backend Side
+6. Database Changes
+7. Troubleshooting
+
+================================================================================
+                              1. OVERVIEW
+================================================================================
+
+This implementation allows users to log into the FindMe app using their Google
+account instead of typing an email and password. When a user taps the Google
+Sign-In button, Google handles the authentication, and our app receives a
+special "token" that proves the user is who they say they are.
+
+Think of it like this:
+- Instead of showing your ID card (email/password) to enter a building,
+- You ask a trusted friend (Google) to vouch for you,
+- Google gives you a special pass (token) that the building security (our backend)
+  can verify is real.
+
+================================================================================
+                           2. FILES INVOLVED
+================================================================================
+
+ANDROID APP (Kotlin):
+---------------------
+1. app/src/main/java/pt/ipt/projetodam_findme/LoginActivity.kt
+   - The login screen where users can sign in
+   - Contains the Google Sign-In button and logic
+
+2. app/src/main/res/layout/activity_login.xml
+   - The visual layout of the login screen
+   - Contains the Google Sign-In button (SignInButton)
+
+3. app/build.gradle.kts
+   - Project dependencies
+   - Includes: implementation("com.google.android.gms:play-services-auth:20.7.0")
+
+BACKEND (PHP):
+--------------
+4. backend/google_auth.php
+   - NEW FILE created for this feature
+   - Verifies Google tokens and creates/logs in users
+
+5. backend/db.php
+   - Database connection (already existed)
+   - Used by google_auth.php to connect to MySQL
+
+CONFIGURATION:
+--------------
+6. Google Cloud Console (external)
+   - Android OAuth Client (with SHA-1 fingerprint)
+   - Web Application OAuth Client (client ID used in code)
+
+================================================================================
+                 3. PREREQUISITES (GOOGLE CLOUD CONSOLE SETUP)
+================================================================================
+
+Before the code works, you need TWO things in Google Cloud Console:
+
+A) ANDROID OAUTH CLIENT
+   - Go to: https://console.cloud.google.com/apis/credentials
+   - Create OAuth Client ID → Select "Android"
+   - Enter:
+     * Package name: pt.ipt.projetodam_findme
+     * SHA-1 fingerprint: (get it by running)
+       keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android
+   - This tells Google "this Android app is allowed to use Google Sign-In"
+
+B) WEB APPLICATION OAUTH CLIENT
+   - Create OAuth Client ID → Select "Web application"
+   - No redirect URIs needed
+   - Copy the Client ID (looks like: 1050226007080-xxxxx.apps.googleusercontent.com)
+   - This ID goes into the Android code in requestIdToken()
+
+WHY TWO CLIENTS?
+- The Android client verifies your app is legitimate
+- The Web client ID is used to generate tokens that your backend can verify
+- This is Google's security requirement
+
+================================================================================
+                      4. STEP-BY-STEP FLOW EXPLANATION
+================================================================================
+
+Imagine you're a user opening the app:
+
+STEP 1: User Opens Login Screen
+-------------------------------
+- The app shows the login screen with email/password fields
+- There's also a "Sign in with Google" button
+
+STEP 2: User Taps Google Sign-In Button
+---------------------------------------
+- The app asks Google "please authenticate this user"
+- Google shows a popup with the user's Google accounts
+- User picks their account
+
+STEP 3: Google Authenticates
+----------------------------
+- Google checks if the user is really the owner of that account
+- (User might need to enter their Google password or use fingerprint)
+- If successful, Google creates an "ID Token"
+
+STEP 4: App Receives the Token
+------------------------------
+- Google sends the ID Token back to our app
+- This token is a long string that contains:
+  * User's email
+  * User's name
+  * Proof that Google verified this person
+
+STEP 5: App Sends Token to Our Backend
+--------------------------------------
+- The app sends this token to: google_auth.php
+- It's like saying "Hey backend, Google gave me this pass, please let me in"
+
+STEP 6: Backend Verifies with Google
+------------------------------------
+- Our backend asks Google "Is this token real?"
+- Google responds with the user's info if valid
+- If someone tried to fake a token, Google would say "invalid"
+
+STEP 7: Backend Creates/Finds User
+----------------------------------
+- Backend checks: "Do we have a user with this email?"
+- If NO: Create a new user account
+- If YES: Use the existing account
+
+STEP 8: Backend Creates Session Token
+-------------------------------------
+- Backend generates a random 64-character token
+- This is OUR token (different from Google's)
+- Saves it to the database with 1-hour expiration
+
+STEP 9: Backend Responds to App
+-------------------------------
+- Sends back: session token + user info (id, name, email)
+
+STEP 10: App Saves Session and Enters
+-------------------------------------
+- App saves everything to SharedPreferences
+- App navigates to MainActivity (the map screen)
+- User is now logged in!
+
+VISUAL DIAGRAM:
+
+    [User]
+       |
+       | 1. Taps "Sign in with Google"
+       v
+    [App] ----2. Request auth----> [Google]
+       |                              |
+       | <---3. ID Token-------------|
+       |
+       | 4. Send ID Token
+       v
+    [Backend] ---5. Verify token---> [Google]
+       |                                |
+       | <---6. User info---------------|
+       |
+       | 7. Create/find user
+       | 8. Generate session token
+       |
+       | 9. Return session + user
+       v
+    [App]
+       |
+       | 10. Save session, go to MainActivity
+       v
+    [User is logged in!]
+
+================================================================================
+                       5. DETAILED CODE EXPLANATION
+================================================================================
+
+=======================================
+5.1 LoginActivity.kt - ANDROID SIDE
+=======================================
+
+LOCATION: app/src/main/java/pt/ipt/projetodam_findme/LoginActivity.kt
+
+----- PART A: Class Variables (Lines 23-34) -----
+
+```kotlin
+class LoginActivity : AppCompatActivity() {
+
+    private lateinit var editEmail: EditText
+    private lateinit var editPassword: EditText
+    private lateinit var btnLogin: Button
+    private lateinit var txtRegister: TextView
+    private lateinit var btnGoogleSignIn: SignInButton      // NEW: Google button
+    private lateinit var googleSignInClient: GoogleSignInClient  // NEW: Google client
+
+    companion object {
+        private const val RC_SIGN_IN = 9001  // NEW: Request code for Google Sign-In
+    }
+```
+
+EXPLANATION:
+- `btnGoogleSignIn`: Reference to the Google Sign-In button in the layout
+- `googleSignInClient`: The object that handles all Google Sign-In operations
+- `RC_SIGN_IN = 9001`: A number we use to identify our sign-in request
+  (like a ticket number at a deli counter - when our number is called, we know it's ours)
+
+
+----- PART B: Google Sign-In Configuration (Lines 47-53) -----
+
+```kotlin
+val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+    .requestIdToken("1050226007080-844dg6rmgu34vgp5l4ra78fdm69taa2b.apps.googleusercontent.com")
+    .requestEmail()
+    .build()
+
+googleSignInClient = GoogleSignIn.getClient(this, gso)
+```
+
+LINE BY LINE:
+- Line 1: Start building Google Sign-In options with default settings
+- Line 2: "Please give me an ID token" - we pass our Web Client ID here
+         This ID tells Google which app is requesting the sign-in
+- Line 3: "Please give me the user's email too"
+- Line 4: Finish building the options
+- Line 6: Create the Google Sign-In client with our options
+
+
+----- PART C: Sign-In Button Click (Lines 61-63) -----
+
+```kotlin
+btnGoogleSignIn.setOnClickListener {
+    signIn()
+}
+```
+
+EXPLANATION:
+- When user taps the button, call the signIn() function
+
+
+----- PART D: The signIn() Function (Lines 152-155) -----
+
+```kotlin
+private fun signIn() {
+    val signInIntent = googleSignInClient.signInIntent
+    startActivityForResult(signInIntent, RC_SIGN_IN)
+}
+```
+
+LINE BY LINE:
+- Line 1: Define a function called signIn
+- Line 2: Ask the Google client to create a sign-in "intent" (a request to open Google's sign-in screen)
+- Line 3: Start that activity and wait for a result
+         RC_SIGN_IN (9001) is our ticket number to identify this request later
+
+
+----- PART E: Handling Google's Response (Lines 160-178) -----
+
+```kotlin
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+
+    if (requestCode == RC_SIGN_IN) {
+        val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account.idToken
+            if (idToken != null) {
+                sendTokenToBackend(idToken)
+            } else {
+                Toast.makeText(this, "Erro: token não recebido", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: ApiException) {
+            Log.w("LoginActivity", "Google sign in failed", e)
+            Toast.makeText(this, "Google Sign-In falhou: ${e.statusCode}", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+```
+
+LINE BY LINE:
+- Line 1: This function is called automatically when Google's sign-in screen closes
+- Line 2: Call the parent class's version first (required by Android)
+- Line 4: Check if this result is from our sign-in request (ticket number 9001)
+- Line 5: Try to get the signed-in account from the data Google sent back
+- Line 6: Start a try block (in case something goes wrong)
+- Line 7: Get the account details; if there's an error, it throws ApiException
+- Line 8: Extract the ID token from the account
+- Line 9-10: If we got a token, send it to our backend
+- Line 11-12: If no token, show an error message
+- Line 14-16: If sign-in failed, log the error and show a message to user
+         e.statusCode tells us what went wrong (e.g., 10 = configuration error)
+
+
+----- PART F: Sending Token to Backend (Lines 180-222) -----
+
+```kotlin
+private fun sendTokenToBackend(idToken: String) {
+    val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/google_auth.php"
+
+    val jsonBody = JSONObject().apply {
+        put("id_token", idToken)
+    }
+
+    val request = JsonObjectRequest(
+        Request.Method.POST,
+        url,
+        jsonBody,
+        { response ->
+            if (response.has("error")) {
+                Toast.makeText(this, response.getString("error"), Toast.LENGTH_LONG).show()
+            } else {
+                val token = response.optString("token")
+                val userObj = response.getJSONObject("user")
+                val userId = userObj.getInt("id")
+                val userName = userObj.getString("name")
+                val userEmail = userObj.getString("email")
+
+                val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
+                sharedPreferences.edit {
+                    putBoolean("logado", true)
+                    putInt("id_user", userId)
+                    putString("nome_user", userName)
+                    putString("email_user", userEmail)
+                    putString("token", token)
+                }
+
+                Toast.makeText(this, "Bem-vindo, $userName!", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, MainActivity::class.java))
+                finish()
+            }
+        },
+        { error ->
+            Toast.makeText(this, "Erro de conexão", Toast.LENGTH_SHORT).show()
+            error.printStackTrace()
+        }
+    )
+
+    Volley.newRequestQueue(this).add(request)
+}
+```
+
+LINE BY LINE:
+- Line 1: Function that takes the Google ID token as input
+- Line 2: The URL of our backend endpoint
+- Lines 4-6: Create a JSON object with the token
+         Result: {"id_token": "eyJhbGciOi..."}
+- Lines 8-11: Create an HTTP POST request to our backend
+- Line 12: This code runs if the request succeeds:
+- Line 13-14: If backend returned an error, show it to user
+- Line 15: If successful:
+- Line 16: Get the session token from response
+- Lines 17-20: Extract user info (id, name, email)
+- Lines 22-28: Save everything to SharedPreferences (app's local storage)
+         This keeps the user logged in even if they close the app
+- Line 30: Show welcome message
+- Line 31: Open the main screen (map)
+- Line 32: Close the login screen (so back button doesn't return here)
+- Lines 35-38: This code runs if the request fails (no internet, server down, etc.)
+- Line 41: Add the request to Volley's queue to be executed
+
+
+=======================================
+5.2 google_auth.php - BACKEND SIDE
+=======================================
+
+LOCATION: backend/google_auth.php
+
+----- FULL FILE WITH LINE-BY-LINE EXPLANATION -----
+
+```php
+<?php
+header('Content-Type: application/json');
+require_once 'db.php';
+```
+- Line 1: Start PHP code
+- Line 2: Tell browsers/apps "I'm sending JSON data back"
+- Line 3: Include the database connection file (gives us $pdo variable)
+
+
+```php
+$data = json_decode(file_get_contents('php://input'), true);
+```
+- Read the raw data sent by the app (the JSON with id_token)
+- json_decode converts it from JSON text to a PHP array
+- Result: $data = ['id_token' => 'eyJhbGciOi...']
+
+
+```php
+if (!isset($data['id_token'])) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Token não fornecido']);
+    exit;
+}
+```
+- Check if the app sent the id_token
+- If not, send error 400 (Bad Request) and stop
+- This prevents crashes if someone calls the endpoint wrong
+
+
+```php
+$id_token = $data['id_token'];
+```
+- Store the token in a variable for easy use
+
+
+```php
+$google_url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($id_token);
+$response = file_get_contents($google_url);
+```
+- Line 1: Build the URL to ask Google "is this token valid?"
+         urlencode() makes sure special characters don't break the URL
+- Line 2: Actually call Google's server and get the response
+         This is like calling Google on the phone and asking "is this person legit?"
+
+
+```php
+if ($response === false) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Falha ao verificar token']);
+    exit;
+}
+```
+- If we couldn't reach Google (network error), send error 401 and stop
+
+
+```php
+$google_data = json_decode($response, true);
+```
+- Convert Google's response from JSON to PHP array
+- Contains: email, name, picture, and more
+
+
+```php
+if (!isset($google_data['email'])) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Token inválido']);
+    exit;
+}
+```
+- If Google's response doesn't have an email, the token was fake/expired
+- Send error and stop
+
+
+```php
+$email = $google_data['email'];
+$name = $google_data['name'] ?? $google_data['email'];
+```
+- Line 1: Get the user's email from Google's response
+- Line 2: Get the user's name; if no name exists, use email as fallback
+         The ?? operator means "if left side is null, use right side"
+
+
+```php
+try {
+    $stmt = $pdo->prepare("SELECT id_user, name, email FROM users WHERE email = ?");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+```
+- Line 1: Start a try block (to catch database errors)
+- Line 2: Prepare a SQL query to find a user by email
+         The ? is a placeholder (prevents SQL injection attacks)
+- Line 3: Run the query, replacing ? with the actual email
+- Line 4: Get the result (user data or false if not found)
+
+
+```php
+    if (!$user) {
+        $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)");
+        $stmt->execute([$name, $email, 'GOOGLE_AUTH']);
+        $userId = $pdo->lastInsertId();
+        $user = ['id_user' => $userId, 'name' => $name, 'email' => $email];
+    }
+```
+- Line 1: If no user found with this email...
+- Line 2-3: Create a new user in the database
+           Password is set to 'GOOGLE_AUTH' (they don't need a password)
+- Line 4: Get the ID of the newly created user
+- Line 5: Create a user array for later use
+
+
+```php
+    $token = bin2hex(random_bytes(32));
+    $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+```
+- Line 1: Generate a random 64-character token
+         random_bytes(32) = 32 random bytes
+         bin2hex() = convert to hexadecimal (64 characters)
+         Example: "a1b2c3d4e5f6..."
+- Line 2: Calculate expiration time (current time + 1 hour)
+         Format: "2026-01-20 15:30:00"
+
+
+```php
+    $stmt = $pdo->prepare("INSERT INTO user_tokens (id_user, token, expires_at) VALUES (?, ?, ?)");
+    $stmt->execute([$user['id_user'], $token, $expires]);
+```
+- Save the token to the database
+- Links the token to the user and sets when it expires
+
+
+```php
+    echo json_encode([
+        'token' => $token,
+        'expires_in' => 3600,
+        'user' => [
+            'id' => (int)$user['id_user'],
+            'name' => $user['name'],
+            'email' => $user['email']
+        ]
+    ]);
+```
+- Send success response back to the app
+- Includes: session token, expiration time (3600 seconds = 1 hour), and user info
+- (int) converts the ID to an integer (ensures proper JSON format)
+
+
+```php
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Erro no servidor']);
+}
+```
+- If any database error occurred, send error 500 (Server Error)
+- We don't show the actual error to users (security)
+
+================================================================================
+                          6. DATABASE CHANGES
+================================================================================
+
+The Google Sign-In uses the EXISTING database tables:
+
+TABLE: users
+------------
+| Column        | Type         | Notes                           |
+|---------------|--------------|----------------------------------|
+| id_user       | INT          | Primary key, auto-increment      |
+| name          | VARCHAR      | User's display name              |
+| email         | VARCHAR      | User's email (unique)            |
+| password_hash | VARCHAR      | 'GOOGLE_AUTH' for Google users   |
+
+TABLE: user_tokens
+------------------
+| Column     | Type         | Notes                              |
+|------------|--------------|-------------------------------------|
+| id         | INT          | Primary key, auto-increment         |
+| id_user    | INT          | Foreign key to users.id_user        |
+| token      | VARCHAR(64)  | The session token                   |
+| expires_at | DATETIME     | When the token expires              |
+
+NOTE: Google users have 'GOOGLE_AUTH' as their password_hash. This means:
+- They cannot log in with email/password (there's no real password)
+- They must always use Google Sign-In
+- This is a simple way to distinguish Google users from regular users
+
+================================================================================
+                          7. TROUBLESHOOTING
+================================================================================
+
+ERROR CODE 10 (DEVELOPER_ERROR)
+-------------------------------
+Cause: OAuth configuration mismatch
+Fix:
+1. Make sure you have BOTH Android and Web Application OAuth clients
+2. The Web Application client ID goes in requestIdToken()
+3. Android client must have correct SHA-1 and package name
+
+"Connection Error" / "Erro de conexão"
+--------------------------------------
+Cause: Backend not reachable or google_auth.php not deployed
+Fix:
+1. Check if google_auth.php is uploaded to Azure
+2. Test endpoint: curl -X POST https://your-url/backend/google_auth.php
+
+"Token não fornecido"
+---------------------
+Cause: App didn't send the id_token properly
+Fix: Check that JSONObject has "id_token" key
+
+"Token inválido"
+----------------
+Cause: Google couldn't verify the token
+Fix:
+1. Token might be expired (they last ~1 hour)
+2. Token might be from wrong client ID
+
+================================================================================
+                              END OF REPORT
+================================================================================

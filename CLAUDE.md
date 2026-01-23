@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FindMe is an Android location-sharing app that allows users to track and share their real-time location.
+FindMe is an Android location-sharing app that allows users to share real-time locations with friends and groups, create geofenced polygon areas with boundary monitoring, and manage friend requests.
 
-**Tech Stack:** Kotlin, Android SDK (API 24-36), Volley (HTTP), Google Maps/Location Services, Google Sign-In, PHP backend with Azure MySQL.
+**Tech Stack:** Kotlin, Android SDK (API 24-36), Volley (HTTP), Google Maps/Location Services, PHP backend with Azure MySQL.
 
-**Language:** Portuguese (UI strings, comments).
+**Language:** Portuguese (UI strings, variable names, comments).
 
 ## Build Commands
 
@@ -16,75 +16,84 @@ FindMe is an Android location-sharing app that allows users to track and share t
 ./gradlew build                    # Full build
 ./gradlew assembleDebug            # Debug APK
 ./gradlew test                     # Unit tests
+./gradlew test --tests "ClassName" # Run single test class
+./gradlew connectedAndroidTest     # Instrumented tests (requires device/emulator)
 ./gradlew installDebug             # Install to connected device
 ./gradlew clean                    # Clean build artifacts
 ```
 
 ## Architecture
 
-### Android App (`app/src/main/java/pt/ipt/projetodam_findme/`)
+### Android App Structure
 
-| Activity | Purpose |
-|----------|---------|
-| `MainActivity` | Main map view with real-time GPS tracking, sends location updates to backend when user moves >= 30m |
-| `LoginActivity` | Email/password login + Google Sign-In (in progress) |
-| `RegisterActivity` | User registration with backend validation |
-| `ProfileActivity` | User profile with satellite map view (18x zoom) |
-| `MapsActivity` | Basic map display (placeholder for future features) |
+Traditional Activity-based architecture without MVVM. Activities handle UI, business logic, and API calls directly via Volley.
 
-### Backend (`/backend`)
+**Main Activities:**
+- `MainActivity` - Map view with friends list, tab navigation, real-time location markers
+- `LoginActivity`/`RegisterActivity` - Authentication (email/password + Google Sign-In)
+- `GroupsActivity`/`GroupDetailsActivity` - Group management and member tracking
+- `ProfileActivity` - User settings, location sharing toggle, pending requests
+- `ZonesActivity` - Lists user's geofenced zones with CRUD operations (long-press for options menu)
+- `MapsActivity` - Multi-mode map: CREATE_ZONE (draw polygon), VIEW_ZONE (real-time tracking with color feedback), EDIT_ZONE (modify existing polygon)
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `login.php` | POST | Auth with email/password, returns 64-char token (1-hour expiry) |
-| `register.php` | POST | User registration with bcrypt password hashing |
-| `logout.php` | POST | Token invalidation via Authorization header |
-| `update_location.php` | POST | Location updates (user_id, latitude, longitude) |
-| `db.php` | - | PDO connection to Azure MySQL (`findme.mysql.database.azure.com`) |
+**Services:**
+- `LocationService` - Foreground service for continuous location tracking (5s intervals, 15m min distance)
+- `NotificationService` - Background service for friend request notifications
 
-### Session Management
+**Data Models:** `Friend`, `Group`, `FriendRequest`, `Zone`, `LatLng` (custom, in `Zone.kt`) - uses `@Parcelize` for intent passing.
 
-SharedPreferences key `"SessaoUsuario"` stores:
-- `logado` (boolean) - authentication status
-- `id_user`, `nome_user`, `email_user`, `token`
+**Session:** SharedPreferences key `"SessaoUsuario"` stores user id, name, email, token, login state, location sharing preference.
 
-### API Communication Pattern
+### Zones Feature
 
-```kotlin
-// POST with JSON body
-val jsonBody = JSONObject().apply {
-    put("email", email)
-    put("password", password)
-}
-val request = JsonObjectRequest(Request.Method.POST, url, jsonBody,
-    { response -> /* handle success */ },
-    { error -> /* handle error */ }
-)
-Volley.newRequestQueue(this).add(request)
+Full CRUD for polygon geofences:
+- Users draw polygons by tapping map points (minimum 3 points)
+- Zones can monitor self or friends' locations
+- VIEW_ZONE mode shows real-time location with color feedback: green (inside zone), red (outside zone)
+- Uses ray casting algorithm for point-in-polygon detection
+- Zones can be activated/deactivated via `toggle_area_status.php`
 
-// POST with form data
-val request = object : StringRequest(Request.Method.POST, url, ...) {
-    override fun getParams() = mutableMapOf("key" to "value")
-}
-```
+### Backend Structure (`/backend`)
 
-**API Base URL:** `https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/`
+PHP APIs with Azure MySQL database. Key endpoints:
+- Auth: `login.php`, `register.php`, `logout.php`, `google_auth.php` (Google Sign-In)
+- Location: `update_location.php`, `get_users_locations.php`, `get_group_locations.php`
+- Friends: `add_friend.php`, `get_pending_requests.php`, `accept_request.php`
+- Groups: `create_group.php`, `get_my_groups.php`, `add_group_member.php`, `remove_group_member.php`
+- Areas: `create_area.php`, `get_user_areas.php`, `update_area.php`, `delete_area.php`, `toggle_area_status.php`
 
-### Location Tracking (MainActivity)
+API Base URL: `https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/`
 
-- Uses `FusedLocationProviderClient` for GPS
-- Updates every 10 seconds, minimum 5 seconds, 10-meter displacement
-- Only sends to backend when moved >= 30 meters (battery optimization)
+### Data Flow
 
-### Database Tables
+1. Activities make HTTP requests via Volley to backend PHP APIs
+2. Backend processes against Azure MySQL, returns JSON
+3. Responses parsed into Kotlin data classes, UI updated via adapters
 
-- `users` - id_user, name, email, password_hash
-- `user_tokens` - token (64-char), id_user, expires_at
-- `locations` - id_user, latitude, longitude, last_update
+## Key Configuration
 
-## Current Branch: `auth_check`
+- **Google Sign-In:** Requires Web Application OAuth client ID in `LoginActivity.kt` (configured in Google Cloud Console)
+- **Google Maps API Key:** In `AndroidManifest.xml`
+- **Cleartext Traffic:** Enabled (`usesCleartextTraffic="true"`)
+- **Permissions:** Internet, fine/coarse location, foreground service, notifications
+- **Database config:** `backend/db.php` (Azure MySQL connection)
 
-Implements Google Sign-In in `LoginActivity.kt`:
-- Uses `play-services-auth:20.7.0`
-- Client ID: `1050226007080-ch5u5u0vv2n1sde2psbkbk2ooi9plq3v.apps.googleusercontent.com`
-- **Incomplete:** Captures ID token but doesn't send to backend for verification/user creation
+## Key File Locations
+
+- **Activities:** `app/src/main/java/pt/ipt/projetodam_findme/`
+- **Services:** `app/src/main/java/pt/ipt/projetodam_findme/services/`
+- **Data Models:** `app/src/main/java/pt/ipt/projetodam_findme/Zone.kt`
+- **Layouts:** `app/src/main/res/layout/`
+- **Backend APIs:** `backend/*.php`
+- **Backend Services:** `backend/services/` (EmailService, NotificationHelper)
+- **SQL Migrations:** `backend/sql/` (database schema changes)
+- **Backend Config:** `backend/config.php` (SMTP credentials - not in Git)
+
+## Email Notifications
+
+Geofence email notifications are fully implemented:
+- `EmailService.php` - PHPMailer wrapper for sending HTML emails via Gmail SMTP
+- `NotificationHelper.php` - Rate-limited notification dispatch with database logging
+- `update_location.php` - Server-side boundary detection triggers notifications on enter/leave events
+- Rate limit: 8 emails per hour per zone (configurable in `config.php`)
+- Requires `email_notifications` table (see `backend/sql/create_email_notifications.sql`)
