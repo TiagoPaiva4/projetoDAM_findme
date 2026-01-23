@@ -5,10 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 FindMe is an Android location-sharing app that allows users to track and share their real-time location with friends and groups.
+FindMe is an Android location-sharing app that allows users to share real-time locations with friends and groups, create geofenced polygon areas with boundary monitoring, and manage friend requests.
 
-**Tech Stack:** Kotlin, Android SDK (API 24-36), Volley (HTTP), Google Maps/Location Services, Google Sign-In, PHP backend with Azure MySQL.
+**Tech Stack:** Kotlin, Android SDK (API 24-36), Volley (HTTP), Google Maps/Location Services, PHP backend with Azure MySQL.
 
-**Language:** Portuguese (UI strings, comments).
+**Language:** Portuguese (UI strings, variable names, comments).
 
 ## Build Commands
 
@@ -16,13 +17,15 @@ FindMe is an Android location-sharing app that allows users to track and share t
 ./gradlew build                    # Full build
 ./gradlew assembleDebug            # Debug APK
 ./gradlew test                     # Unit tests
+./gradlew test --tests "ClassName" # Run single test class
+./gradlew connectedAndroidTest     # Instrumented tests (requires device/emulator)
 ./gradlew installDebug             # Install to connected device
 ./gradlew clean                    # Clean build artifacts
 ```
 
 ## Architecture
 
-### Android App (`app/src/main/java/pt/ipt/projetodam_findme/`)
+### Android App Structure
 
 **Activities:**
 
@@ -47,7 +50,13 @@ FindMe is an Android location-sharing app that allows users to track and share t
 
 **Adapters:** `FriendsAdapter`, `GroupsAdapter`, `RequestsAdapter` - RecyclerView adapters for lists.
 
-### Backend (`/backend`)
+**Main Activities:**
+- `MainActivity` - Map view with friends list, tab navigation, real-time location markers
+- `LoginActivity`/`RegisterActivity` - Authentication (email/password + Google Sign-In)
+- `GroupsActivity`/`GroupDetailsActivity` - Group management and member tracking
+- `ProfileActivity` - User settings, location sharing toggle, pending requests
+- `ZonesActivity` - Lists user's geofenced zones with CRUD operations (long-press for options menu)
+- `MapsActivity` - Multi-mode map: CREATE_ZONE (draw polygon), VIEW_ZONE (real-time tracking with color feedback), EDIT_ZONE (modify existing polygon)
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
@@ -68,13 +77,11 @@ FindMe is an Android location-sharing app that allows users to track and share t
 | `db.php` | - | PDO connection to Azure MySQL |
 | `config.php` | - | SMTP config for email notifications (not in git) |
 
-### Session Management
+**Data Models:** `Friend`, `Group`, `FriendRequest`, `Zone`, `LatLng` (custom, in `Zone.kt`) - uses `@Parcelize` for intent passing.
 
-SharedPreferences key `"SessaoUsuario"` stores:
-- `logado` (boolean) - authentication status
-- `id_user`, `nome_user`, `email_user`, `token`
+**Session:** SharedPreferences key `"SessaoUsuario"` stores user id, name, email, token, login state, location sharing preference.
 
-### API Communication Pattern
+### Zones Feature
 
 ```kotlin
 // POST with JSON body
@@ -89,7 +96,12 @@ val request = JsonObjectRequest(Request.Method.POST, url, jsonBody,
 Volley.newRequestQueue(this).add(request)
 ```
 
-**API Base URL:** `https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/`
+PHP APIs with Azure MySQL database. Key endpoints:
+- Auth: `login.php`, `register.php`, `logout.php`, `google_auth.php` (Google Sign-In)
+- Location: `update_location.php`, `get_users_locations.php`, `get_group_locations.php`
+- Friends: `add_friend.php`, `get_pending_requests.php`, `accept_request.php`
+- Groups: `create_group.php`, `get_my_groups.php`, `add_group_member.php`, `remove_group_member.php`
+- Areas: `create_area.php`, `get_user_areas.php`, `update_area.php`, `delete_area.php`, `toggle_area_status.php`
 
 ### Location Tracking
 
@@ -99,7 +111,9 @@ Volley.newRequestQueue(this).add(request)
 - Runs continuously until explicitly stopped
 - Shows persistent notification while tracking
 
-### Database Tables
+1. Activities make HTTP requests via Volley to backend PHP APIs
+2. Backend processes against Azure MySQL, returns JSON
+3. Responses parsed into Kotlin data classes, UI updated via adapters
 
 - `users` - id_user, name, email, password_hash (or 'GOOGLE_AUTH' for Google users)
 - `user_tokens` - token (64-char), id_user, expires_at

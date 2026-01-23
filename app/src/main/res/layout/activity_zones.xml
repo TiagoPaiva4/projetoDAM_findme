@@ -4,69 +4,67 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#000000">
 
-    <androidx.fragment.app.FragmentContainerView
-        android:id="@+id/map"
-        android:name="com.google.android.gms.maps.SupportMapFragment"
+    <!-- IMAGEM DE FUNDO -->
+    <ImageView
+        android:id="@+id/bgImage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="85dp"
+        android:src="@drawable/background_blue"
+        android:scaleType="centerCrop" />
+
+    <!-- CAMADA ESCURA TRANSPARENTE -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="85dp"
+        android:background="#66000000" />
+
+    <!-- AREA DE SCROLL -->
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintTop_toTopOf="parent"
+        android:fillViewport="true"
+        android:clipToPadding="false"
         app:layout_constraintBottom_toTopOf="@+id/navBarBottom"
-        tools:context=".MapsActivity" />
+        app:layout_constraintTop_toTopOf="parent">
 
-    <!-- Instruction text at top - visible only in create mode -->
-    <TextView
-        android:id="@+id/tvInstruction"
-        android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="40dp"
+            android:paddingBottom="20dp">
+
+            <!-- LISTA DE ZONAS -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/zones_recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                tools:itemCount="5"
+                tools:listitem="@layout/item_zone" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- FAB PARA ADICIONAR ZONA -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_add_zone"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="#CC000000"
-        android:padding="12dp"
-        android:text="Toque no mapa para adicionar pontos ao poligono"
-        android:textColor="@android:color/white"
-        android:textAlignment="center"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:src="@drawable/ic_add_circle"
+        app:tint="@android:color/white"
+        app:layout_constraintBottom_toTopOf="@+id/navBarBottom"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Drawing controls - visible only in create mode -->
-    <LinearLayout
-        android:id="@+id/drawingControls"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:orientation="horizontal"
-        android:background="#CCFFFFFF"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@+id/navBarBottom">
-
-        <Button
-            android:id="@+id/btnUndo"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Desfazer"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-
-        <Button
-            android:id="@+id/btnClear"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="Limpar"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-
-        <Button
-            android:id="@+id/btnConfirm"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="Confirmar" />
-
-    </LinearLayout>
-
-    <!-- BARRA DE NAVEGACAO (Fixa em baixo) - visible in view mode -->
+    <!-- BARRA DE NAVEGACAO (Fixa em baixo) -->
     <LinearLayout
         android:id="@+id/navBarBottom"
         android:layout_width="match_parent"
@@ -78,7 +76,6 @@
         android:paddingTop="10dp"
         android:orientation="horizontal"
         android:gravity="top"
-        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent">
 
         <LinearLayout

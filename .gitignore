@@ -13,6 +13,14 @@
 .externalNativeBuild
 .cxx
 local.properties
+checkpoint.md
+.kotlin/
+CLAUDE.md
+.claude/
+report.md
+
+# Backend configuration (credentials)
+backend/config.php
 /report
 CLAUDE.md
 GEMINI.md
