@@ -9,9 +9,11 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.location.Location
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -19,6 +21,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -99,6 +102,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFragment = supportFragmentManager.findFragmentById(R.id.mapMain) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
+        // A verificação de permissão é feita aqui
         checkLocationPermission()
     }
 
@@ -238,34 +242,28 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return (dp * density).toInt()
     }
 
-    // Função para converter o layout XML em Bitmap (COM LÓGICA DE INICIAIS ATUALIZADA)
+    // --- FUNÇÃO DO MARCADOR PERSONALIZADO ---
     private fun getCustomMarkerBitmap(nome: String): BitmapDescriptor {
         val view = LayoutInflater.from(this).inflate(R.layout.layout_custom_marker, null)
         val textView = view.findViewById<TextView>(R.id.marker_text)
 
         val nomeLimpo = nome.trim()
-        val partes = nomeLimpo.split("\\s+".toRegex()) // Divide pelos espaços
+        val partes = nomeLimpo.split("\\s+".toRegex())
 
         val sigla = if (partes.size >= 2) {
-            // CASO 1: Tem pelo menos dois nomes (Ex: Tiago Paiva)
-            // Pega a 1ª letra do primeiro e 1ª letra do segundo
             val letra1 = partes[0].firstOrNull()?.toString() ?: ""
             val letra2 = partes[1].firstOrNull()?.toString() ?: ""
             (letra1 + letra2).uppercase()
         } else {
-            // CASO 2: Só tem um nome (Ex: Tiago)
             if (nomeLimpo.length >= 2) {
-                // Pega as duas primeiras letras
                 nomeLimpo.substring(0, 2).uppercase()
             } else {
-                // Caso raro de nome com 1 letra, mostra só essa
                 nomeLimpo.uppercase()
             }
         }
 
         textView.text = sigla
 
-        // Obriga a view a desenhar-se
         val spec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
         view.measure(spec, spec)
         view.layout(0, 0, view.measuredWidth, view.measuredHeight)
@@ -276,6 +274,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         return BitmapDescriptorFactory.fromBitmap(bitmap)
     }
+
+    // --- LÓGICA DE PERMISSÕES ATUALIZADA ---
 
     private fun checkLocationPermission() {
         val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -290,6 +290,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (permissionsToRequest.isEmpty()) {
             startLocationUpdates()
         } else {
+            // Se já foi negado anteriormente, podemos mostrar o aviso antes de pedir
             ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), permissionRequestCode)
         }
     }
@@ -297,11 +298,42 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == permissionRequestCode) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+
+            // Verifica se a permissão de localização foi concedida
+            val locationPermissionIndex = permissions.indexOf(Manifest.permission.ACCESS_FINE_LOCATION)
+
+            if (locationPermissionIndex != -1 && grantResults[locationPermissionIndex] == PackageManager.PERMISSION_GRANTED) {
+                // Sucesso
                 startLocationUpdates()
                 if (::mMap.isInitialized) enableBlueDot()
+            } else {
+                // NEGADO: Mostrar Alerta
+                showPermissionDeniedDialog()
             }
         }
+    }
+
+    // NOVA FUNÇÃO: Mostra o alerta se o user disser "Não"
+    private fun showPermissionDeniedDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Permissão de GPS Necessária")
+            .setMessage("O FindMe precisa da sua localização para funcionar e mostrar os seus amigos no mapa.\n\nPor favor, ative a permissão nas definições.")
+            .setCancelable(false) // Impede fechar tocando fora
+            .setPositiveButton("Ir às Definições") { _, _ ->
+                try {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    val uri = Uri.fromParts("package", packageName, null)
+                    intent.data = uri
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            .setNegativeButton("Sair") { dialog, _ ->
+                dialog.dismiss()
+                finish() // Fecha a app porque sem GPS não funciona
+            }
+            .show()
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -352,7 +384,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { currentLocation ->
                     lastSentLocation = currentLocation
-                    // Continua a atualizar a lista de amigos
                     if (currentTab == Tab.PEOPLE) buscarAmigos()
                 }
             }
@@ -383,11 +414,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                     val friendPos = LatLng(lat, lon)
 
-                    // --- AQUI APLICAMOS O NOVO ÍCONE ---
                     val marker = mMap.addMarker(MarkerOptions()
                         .position(friendPos)
                         .title(name)
-                        .icon(getCustomMarkerBitmap(name)) // Chama a nova função
+                        .icon(getCustomMarkerBitmap(name))
                         .anchor(0.5f, 0.5f))
 
                     if (marker != null) markersMap[friendId] = marker
