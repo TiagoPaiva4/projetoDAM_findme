@@ -1,9 +1,10 @@
 package pt.ipt.projetodam_findme.services
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -13,10 +14,14 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.android.volley.Request
-import com.android.volley.toolbox.StringRequest
+import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.gms.location.*
+import org.json.JSONObject
+import pt.ipt.projetodam_findme.MainActivity
 import pt.ipt.projetodam_findme.R
+import pt.ipt.projetodam_findme.Zone
+import pt.ipt.projetodam_findme.LatLng // Importante: Usar a tua classe LatLng
 
 class LocationService : Service() {
 
@@ -24,72 +29,58 @@ class LocationService : Service() {
     private lateinit var locationCallback: LocationCallback
     private var userId: String? = null
 
+    // Lista de zonas para monitorizar (em memória)
+    private var myZones: MutableList<Zone> = mutableListOf()
+
     companion object {
-        private const val CHANNEL_ID = "location_channel_01"
-        private const val NOTIFICATION_ID = 12345
+        const val CHANNEL_GEOFENCE_ID = "geofence_channel"
+        const val NOTIFICATION_ID = 12345
     }
 
     override fun onCreate() {
         super.onCreate()
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         createNotificationChannel()
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { location ->
+                    userId?.let { id ->
+                        // 1. Enviar para o servidor (para os amigos verem no mapa)
+                        sendLocationToBackend(id, location.latitude, location.longitude)
+
+                        // 2. VERIFICAÇÃO LOCAL (A Mágica acontece aqui!)
+                        checkGeofences(location.latitude, location.longitude)
+                    }
+                }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Receber o ID do utilizador vindo da MainActivity
         userId = intent?.getStringExtra("USER_ID")
 
-        if (userId == null) {
-            Log.e("LocationService", "Serviço parado: ID de utilizador não fornecido.")
-            stopSelf()
-            return START_NOT_STICKY
-        }
-
-        // Criar a notificação para o serviço de primeiro plano
-        val notification = createNotification()
-
-        // Iniciar como Foreground Service (compatível com Android 14+)
+        // Iniciar como Foreground Service (obrigatório para location background no Android recente)
+        val notification = createServiceNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ServiceCompat.startForeground(
-                this,
-                NOTIFICATION_ID,
-                notification,
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-                } else {
-                    0
-                }
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0
             )
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        // Iniciar o pedido de atualizações de localização
-        startLocationUpdates()
+        // Assim que o serviço arranca, vamos buscar as zonas ao servidor UMA VEZ
+        userId?.let { fetchUserZones(it) }
 
-        return START_STICKY // Tenta reiniciar o serviço se o sistema o matar
+        startLocationUpdates()
+        return START_STICKY
     }
 
     private fun startLocationUpdates() {
-        // CONFIGURAÇÃO OTIMIZADA PARA POUPAR DADOS E BATERIA
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).apply {
-            // Intervalo mínimo entre atualizações (5 segundos)
-            setMinUpdateIntervalMillis(5000)
-
-            // IMPORTANTE: Só envia se o utilizador se deslocar mais de 15 metros.
-            // Isto evita enviar dados repetidos quando estás parado (drift do GPS).
-            setMinUpdateDistanceMeters(15f)
-        }.build()
-
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) {
-                locationResult.lastLocation?.let { location ->
-                    Log.d("LocationService", "Movimento detetado: ${location.latitude}, ${location.longitude}")
-                    // Enviar para a API apenas quando há movimento real
-                    userId?.let { id -> enviarLocalizacao(id, location.latitude, location.longitude) }
-                }
-            }
-        }
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
+            .setMinUpdateIntervalMillis(5000)
+            .build()
 
         try {
             fusedLocationClient.requestLocationUpdates(
@@ -98,62 +89,144 @@ class LocationService : Service() {
                 Looper.getMainLooper()
             )
         } catch (e: SecurityException) {
-            Log.e("LocationService", "Erro: Permissão de localização perdida.")
+            e.printStackTrace()
         }
     }
 
-    private fun enviarLocalizacao(userId: String, latitude: Double, longitude: Double) {
-        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/update_location.php"
+    // --- 1. FUNÇÃO: Sacar as zonas do servidor para memória ---
+    private fun fetchUserZones(id: String) {
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_user_areas.php?user_id=$id"
 
-        // Usar applicationContext para a queue para evitar leaks de memória do serviço
-        val queue = Volley.newRequestQueue(applicationContext)
+        val request = JsonObjectRequest(Request.Method.GET, url, null,
+            { response ->
+                val zonesArray = response.optJSONArray("areas")
+                if (zonesArray != null) {
+                    myZones.clear()
+                    for (i in 0 until zonesArray.length()) {
+                        val obj = zonesArray.getJSONObject(i)
 
-        val postRequest = object : StringRequest(Request.Method.POST, url,
-            { response -> Log.d("API", "Sucesso ao enviar: $response") },
-            { error -> Log.e("API", "Erro ao enviar: ${error.message}") }
-        ) {
-            override fun getParams(): MutableMap<String, String> {
-                return mutableMapOf(
-                    "user_id" to userId,
-                    "latitude" to latitude.toString(),
-                    "longitude" to longitude.toString()
-                )
+                        // Converter o JSON String de coordenadas para List<LatLng>
+                        val coordsJson = obj.getString("coordinates")
+                        val coordsList = parseCoordinates(coordsJson)
+
+                        // Adicionar à lista
+                        myZones.add(Zone(
+                            id = obj.getString("id"),
+                            name = obj.getString("name"),
+                            adminId = obj.optString("admin_id", ""),
+                            associatedUserId = obj.optString("user_id", ""),
+                            coordinates = coordsList // Lista convertida
+                        ))
+                    }
+                    Log.d("LocationService", "Zonas carregadas: ${myZones.size}")
+                }
+            },
+            { Log.e("LocationService", "Erro ao carregar zonas: ${it.message}") }
+        )
+        Volley.newRequestQueue(this).add(request)
+    }
+
+    // --- 2. FUNÇÃO: Converter String JSON para List<LatLng> ---
+    private fun parseCoordinates(jsonStr: String): List<LatLng> {
+        val list = mutableListOf<LatLng>()
+        try {
+            val jsonArray = org.json.JSONArray(jsonStr)
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                list.add(LatLng(
+                    latitude = obj.getDouble("lat"),
+                    longitude = obj.getDouble("lng")
+                ))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return list
+    }
+
+    // --- 3. FUNÇÃO: Verificar se estou dentro/fora (Geofencing Local) ---
+    private fun checkGeofences(lat: Double, lng: Double) {
+        // Cria o ponto atual usando a classe interna do GeofenceManager
+        val currentPoint = GeofenceManager.Point(lat, lng)
+
+        // SharedPreferences para não repetir notificações
+        val prefs = getSharedPreferences("GeofenceStatus", Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+
+        for (zone in myZones) {
+            // Usa o algoritmo local para verificar (sem ir à net)
+            val isInside = GeofenceManager.isPointInPolygon(currentPoint, zone.coordinates)
+
+            val currentStatus = if (isInside) "inside" else "outside"
+
+            // Verifica o estado anterior
+            val lastStatus = prefs.getString("zone_${zone.id}", "unknown")
+
+            // Se o estado mudou (e não é a primeira vez), notifica!
+            if (lastStatus != "unknown" && lastStatus != currentStatus) {
+                val msg = if (isInside) "Entraste na zona: ${zone.name}" else "Saíste da zona: ${zone.name}"
+                sendNotification(msg)
+            }
+
+            // Atualiza o estado guardado
+            if (lastStatus != currentStatus) {
+                editor.putString("zone_${zone.id}", currentStatus)
+                editor.apply()
             }
         }
-        queue.add(postRequest)
     }
 
-    private fun createNotification(): Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("FindMe Ativo")
-            .setContentText("A atualizar a tua localização em movimento...")
-            .setSmallIcon(R.mipmap.ic_launcher) // Garante que tens este ícone ou usa R.drawable.ic_launcher_foreground
+    // --- Auxiliares de Notificação ---
+
+    private fun sendNotification(message: String) {
+        val manager = getSystemService(NotificationManager::class.java)
+        val intent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_GEOFENCE_ID)
+            .setContentTitle("Alerta de Localização")
+            .setContentText(message)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        manager.notify(System.currentTimeMillis().toInt(), notification)
+    }
+
+    private fun createServiceNotification(): android.app.Notification {
+        return NotificationCompat.Builder(this, CHANNEL_GEOFENCE_ID)
+            .setContentTitle("FindMe a correr")
+            .setContentText("A monitorizar a tua localização...")
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true) // Impede o utilizador de "limpar" a notificação sem querer
             .build()
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val serviceChannel = NotificationChannel(
-                CHANNEL_ID,
-                "Partilha de Localização",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Notificação ativa enquanto a localização é partilhada"
-            }
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(serviceChannel)
+            val channel = NotificationChannel(CHANNEL_GEOFENCE_ID, "Geofencing Alert", NotificationManager.IMPORTANCE_HIGH)
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
+    }
+
+    // --- Envio para Backend (para tracking visual dos amigos) ---
+    private fun sendLocationToBackend(userId: String, lat: Double, lng: Double) {
+        val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/update_location.php"
+        val jsonBody = JSONObject().apply {
+            put("user_id", userId)
+            put("latitude", lat)
+            put("longitude", lng)
+        }
+        // Não precisamos de resposta aqui, é fire-and-forget
+        val request = JsonObjectRequest(Request.Method.POST, url, jsonBody, {}, {})
+        Volley.newRequestQueue(this).add(request)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // Parar o rastreio quando o serviço é destruído para poupar bateria
-        if (::locationCallback.isInitialized) {
-            fusedLocationClient.removeLocationUpdates(locationCallback)
-        }
-        Log.d("LocationService", "Serviço de localização parado.")
+        fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
