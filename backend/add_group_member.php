@@ -9,24 +9,29 @@ if ($_SERVER['REQUEST_METHOD'] != 'POST') {
 
 $group_id = $_POST['group_id'] ?? '';
 $email_to_add = $_POST['email'] ?? '';
+$user_id_param = $_POST['user_id'] ?? '';
 
-if (empty($group_id) || empty($email_to_add)) {
+if (empty($group_id) || (empty($email_to_add) && empty($user_id_param))) {
     echo json_encode(["error" => "Dados incompletos."]);
     exit();
 }
 
 try {
-    // 1. Procurar o ID da pessoa pelo Email
-    $stmt = $pdo->prepare("SELECT id_user FROM users WHERE email = ?");
-    $stmt->execute([$email_to_add]);
-    $user_to_add = $stmt->fetch(PDO::FETCH_ASSOC);
+    // 1. Get user_id - either directly or by email lookup
+    if (!empty($user_id_param)) {
+        $user_id_to_add = $user_id_param;
+    } else {
+        $stmt = $pdo->prepare("SELECT id_user FROM users WHERE email = ?");
+        $stmt->execute([$email_to_add]);
+        $user_to_add = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$user_to_add) {
-        echo json_encode(["error" => "Utilizador não encontrado."]);
-        exit();
+        if (!$user_to_add) {
+            echo json_encode(["error" => "Utilizador não encontrado."]);
+            exit();
+        }
+
+        $user_id_to_add = $user_to_add['id_user'];
     }
-
-    $user_id_to_add = $user_to_add['id_user'];
 
     // 2. Verificar se já é membro do grupo
     $check = $pdo->prepare("SELECT id_member FROM group_members WHERE id_group = ? AND id_user = ?");
