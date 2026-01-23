@@ -21,7 +21,7 @@ import org.json.JSONObject
 import pt.ipt.projetodam_findme.MainActivity
 import pt.ipt.projetodam_findme.R
 import pt.ipt.projetodam_findme.Zone
-import pt.ipt.projetodam_findme.LatLng // Importante: Usar a tua classe LatLng
+import pt.ipt.projetodam_findme.LatLng
 
 class LocationService : Service() {
 
@@ -29,7 +29,7 @@ class LocationService : Service() {
     private lateinit var locationCallback: LocationCallback
     private var userId: String? = null
 
-    // Lista de zonas para monitorizar (em memória)
+    // Lista de zonas para monitorizar
     private var myZones: MutableList<Zone> = mutableListOf()
 
     companion object {
@@ -46,10 +46,10 @@ class LocationService : Service() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { location ->
                     userId?.let { id ->
-                        // 1. Enviar para o servidor (para os amigos verem no mapa)
+                        // 1. Enviar localização para o backend (Tracking)
                         sendLocationToBackend(id, location.latitude, location.longitude)
 
-                        // 2. VERIFICAÇÃO LOCAL (A Mágica acontece aqui!)
+                        // 2. Verificar Geofences (Alertas)
                         checkGeofences(location.latitude, location.longitude)
                     }
                 }
@@ -60,7 +60,7 @@ class LocationService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         userId = intent?.getStringExtra("USER_ID")
 
-        // Iniciar como Foreground Service (obrigatório para location background no Android recente)
+        // Notificação persistente do serviço (Obrigatório Android mais recentes)
         val notification = createServiceNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, notification,
@@ -70,7 +70,7 @@ class LocationService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        // Assim que o serviço arranca, vamos buscar as zonas ao servidor UMA VEZ
+        // Carregar zonas assim que o serviço inicia
         userId?.let { fetchUserZones(it) }
 
         startLocationUpdates()
@@ -93,7 +93,7 @@ class LocationService : Service() {
         }
     }
 
-    // --- 1. FUNÇÃO: Sacar as zonas do servidor para memória ---
+    // --- 1. LER ZONAS E O SEU ESTADO (ATIVO/INATIVO) ---
     private fun fetchUserZones(id: String) {
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_user_areas.php?user_id=$id"
 
@@ -105,17 +105,22 @@ class LocationService : Service() {
                     for (i in 0 until zonesArray.length()) {
                         val obj = zonesArray.getJSONObject(i)
 
-                        // Converter o JSON String de coordenadas para List<LatLng>
                         val coordsJson = obj.getString("coordinates")
                         val coordsList = parseCoordinates(coordsJson)
 
-                        // Adicionar à lista
+                        // [CORREÇÃO] Ler o campo 'is_active'.
+                        // O PHP costuma mandar 0 ou 1. Convertemos para Boolean.
+                        // Se o campo não existir, assumimos 'true' por segurança.
+                        val isActiveInt = obj.optInt("is_active", 1)
+                        val isActive = (isActiveInt == 1)
+
                         myZones.add(Zone(
                             id = obj.getString("id"),
                             name = obj.getString("name"),
                             adminId = obj.optString("admin_id", ""),
                             associatedUserId = obj.optString("user_id", ""),
-                            coordinates = coordsList // Lista convertida
+                            coordinates = coordsList,
+                            isActive = isActive // Passamos o valor lido para a classe Zone
                         ))
                     }
                     Log.d("LocationService", "Zonas carregadas: ${myZones.size}")
@@ -126,7 +131,6 @@ class LocationService : Service() {
         Volley.newRequestQueue(this).add(request)
     }
 
-    // --- 2. FUNÇÃO: Converter String JSON para List<LatLng> ---
     private fun parseCoordinates(jsonStr: String): List<LatLng> {
         val list = mutableListOf<LatLng>()
         try {
@@ -144,39 +148,37 @@ class LocationService : Service() {
         return list
     }
 
-    // --- 3. FUNÇÃO: Verificar se estou dentro/fora (Geofencing Local) ---
+    // --- 2. VERIFICAR GEOFENCES (COM FILTRO 'isActive') ---
     private fun checkGeofences(lat: Double, lng: Double) {
-        // Cria o ponto atual usando a classe interna do GeofenceManager
         val currentPoint = GeofenceManager.Point(lat, lng)
-
-        // SharedPreferences para não repetir notificações
         val prefs = getSharedPreferences("GeofenceStatus", Context.MODE_PRIVATE)
         val editor = prefs.edit()
 
         for (zone in myZones) {
-            // Usa o algoritmo local para verificar (sem ir à net)
-            val isInside = GeofenceManager.isPointInPolygon(currentPoint, zone.coordinates)
 
+            // [CORREÇÃO] Se a zona NÃO estiver ativa, ignoramos completamente
+            if (!zone.isActive) {
+                // Opcional: Se quiseres limpar o estado anterior para garantir que notifica quando reativar:
+                // editor.remove("zone_${zone.id}")
+                continue
+            }
+
+            val isInside = GeofenceManager.isPointInPolygon(currentPoint, zone.coordinates)
             val currentStatus = if (isInside) "inside" else "outside"
 
-            // Verifica o estado anterior
             val lastStatus = prefs.getString("zone_${zone.id}", "unknown")
 
-            // Se o estado mudou (e não é a primeira vez), notifica!
             if (lastStatus != "unknown" && lastStatus != currentStatus) {
                 val msg = if (isInside) "Entraste na zona: ${zone.name}" else "Saíste da zona: ${zone.name}"
                 sendNotification(msg)
             }
 
-            // Atualiza o estado guardado
             if (lastStatus != currentStatus) {
                 editor.putString("zone_${zone.id}", currentStatus)
                 editor.apply()
             }
         }
     }
-
-    // --- Auxiliares de Notificação ---
 
     private fun sendNotification(message: String) {
         val manager = getSystemService(NotificationManager::class.java)
@@ -197,8 +199,8 @@ class LocationService : Service() {
 
     private fun createServiceNotification(): android.app.Notification {
         return NotificationCompat.Builder(this, CHANNEL_GEOFENCE_ID)
-            .setContentTitle("FindMe a correr")
-            .setContentText("A monitorizar a tua localização...")
+            .setContentTitle("FindMe Ativo")
+            .setContentText("A monitorizar localização...")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
@@ -206,12 +208,11 @@ class LocationService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(CHANNEL_GEOFENCE_ID, "Geofencing Alert", NotificationManager.IMPORTANCE_HIGH)
+            val channel = NotificationChannel(CHANNEL_GEOFENCE_ID, "Geofencing", NotificationManager.IMPORTANCE_HIGH)
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
 
-    // --- Envio para Backend (para tracking visual dos amigos) ---
     private fun sendLocationToBackend(userId: String, lat: Double, lng: Double) {
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/update_location.php"
         val jsonBody = JSONObject().apply {
@@ -219,7 +220,6 @@ class LocationService : Service() {
             put("latitude", lat)
             put("longitude", lng)
         }
-        // Não precisamos de resposta aqui, é fire-and-forget
         val request = JsonObjectRequest(Request.Method.POST, url, jsonBody, {}, {})
         Volley.newRequestQueue(this).add(request)
     }
