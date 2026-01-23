@@ -1,7 +1,11 @@
 package pt.ipt.projetodam_findme
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -137,6 +141,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, originalPadding + bars.bottom)
                 insets
             }
+        }
+
+        // Handle system bar insets for drawing controls (create/edit mode)
+        ViewCompat.setOnApplyWindowInsetsListener(drawingControls) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val originalPadding = (16 * resources.displayMetrics.density).toInt()
+            view.setPadding(originalPadding, originalPadding, originalPadding, originalPadding + bars.bottom)
+            insets
         }
 
         // Initialize the map fragment
@@ -485,11 +497,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun addPolygonPoint(latLng: LatLng) {
         polygonPoints.add(latLng)
 
-        // Add marker at the point
+        // Add numbered circle marker at the point
+        val pointNumber = polygonPoints.size
+        val markerIcon = createNumberedCircleMarker(pointNumber)
         val marker = mMap.addMarker(
             MarkerOptions()
                 .position(latLng)
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
+                .icon(BitmapDescriptorFactory.fromBitmap(markerIcon))
                 .anchor(0.5f, 0.5f)
         )
         marker?.let { markers.add(it) }
@@ -499,6 +513,43 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // Update instruction text
         updateInstructionText()
+    }
+
+    /**
+     * Creates a blue circle bitmap with a number inside
+     */
+    private fun createNumberedCircleMarker(number: Int): Bitmap {
+        val size = (40 * resources.displayMetrics.density).toInt()
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        // Draw blue circle
+        val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#3A8DDE")
+            style = Paint.Style.FILL
+        }
+        val radius = size / 2f
+        canvas.drawCircle(radius, radius, radius - 2, circlePaint)
+
+        // Draw white border
+        val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = 3f
+        }
+        canvas.drawCircle(radius, radius, radius - 2, borderPaint)
+
+        // Draw number
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = size * 0.45f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.CENTER
+        }
+        val textY = radius - (textPaint.descent() + textPaint.ascent()) / 2
+        canvas.drawText(number.toString(), radius, textY, textPaint)
+
+        return bitmap
     }
 
     private fun redrawPolygon() {
