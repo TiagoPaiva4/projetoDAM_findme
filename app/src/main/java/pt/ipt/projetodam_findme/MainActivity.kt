@@ -13,17 +13,18 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.Request
@@ -52,7 +53,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var userId: String
     private var lastSentLocation: Location? = null
-    // private var isFirstLocation = true // Não usado atualmente
 
     private lateinit var recyclerFriends: RecyclerView
     private val friendsList = ArrayList<Friend>()
@@ -122,7 +122,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         sheetBehavior.peekHeight = dpToPx(240)
         sheetBehavior.state = BottomSheetBehavior.STATE_COLLAPSED
 
-        // --- Lógica da Seta (Toggle) ---
         val btnToggle = findViewById<ImageView>(R.id.btnToggleSheet)
 
         sheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
@@ -146,7 +145,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         recyclerFriends = findViewById(R.id.recyclerFriends)
         recyclerFriends.layoutManager = LinearLayoutManager(this)
 
-        // [CORREÇÃO] Passamos o addFriendListener aqui
         adapter = FriendsAdapter(
             friendsList = friendsList,
             clickListener = { friend ->
@@ -160,8 +158,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             addFriendListener = { handleAddButtonClick() }
         )
         recyclerFriends.adapter = adapter
-
-        // O botão antigo btnAddNewFriendAction já não existe no XML da Activity, foi removido.
 
         // Inicializar NavItems
         tabPessoas = findViewById(R.id.navPessoas)
@@ -189,28 +185,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             currentTab = Tab.GROUPS
             val intent = Intent(this, GroupsActivity::class.java)
             startActivity(intent)
-            // [CORREÇÃO] Suprimir depreciação
             @Suppress("DEPRECATION")
             overridePendingTransition(0, 0)
         }
 
         tabCirculos.setOnClickListener {
             atualizarEstiloAbas(tabCirculos)
-            // currentTab = Tab.CIRCLES // This will be handled by the new activity if needed
-
             val intent = Intent(this, ZonesActivity::class.java)
             startActivity(intent)
-
-            // To remove transition animation
             @Suppress("DEPRECATION")
             overridePendingTransition(0, 0)
         }
 
-
         tabEu.setOnClickListener {
             val intent = Intent(this, ProfileActivity::class.java)
             startActivity(intent)
-            // [CORREÇÃO] Suprimir depreciação
             @Suppress("DEPRECATION")
             overridePendingTransition(0, 0)
         }
@@ -226,14 +215,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun atualizarEstiloAbas(abaSelecionada: LinearLayout) {
         val listaAbas = listOf(tabPessoas, tabGrupos, tabCirculos, tabEu)
-
         val corAtiva = Color.parseColor("#3A8DDE")
         val corInativa = Color.parseColor("#8E8E93")
 
         for (aba in listaAbas) {
             val icon = aba.getChildAt(0) as ImageView
             val text = aba.getChildAt(1) as TextView
-
             if (aba == abaSelecionada) {
                 icon.setColorFilter(corAtiva)
                 text.setTextColor(corAtiva)
@@ -251,28 +238,41 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return (dp * density).toInt()
     }
 
-    private fun criarIconeCircular(nome: String): BitmapDescriptor {
-        val width = 120
-        val height = 120
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    // Função para converter o layout XML em Bitmap (COM LÓGICA DE INICIAIS ATUALIZADA)
+    private fun getCustomMarkerBitmap(nome: String): BitmapDescriptor {
+        val view = LayoutInflater.from(this).inflate(R.layout.layout_custom_marker, null)
+        val textView = view.findViewById<TextView>(R.id.marker_text)
+
+        val nomeLimpo = nome.trim()
+        val partes = nomeLimpo.split("\\s+".toRegex()) // Divide pelos espaços
+
+        val sigla = if (partes.size >= 2) {
+            // CASO 1: Tem pelo menos dois nomes (Ex: Tiago Paiva)
+            // Pega a 1ª letra do primeiro e 1ª letra do segundo
+            val letra1 = partes[0].firstOrNull()?.toString() ?: ""
+            val letra2 = partes[1].firstOrNull()?.toString() ?: ""
+            (letra1 + letra2).uppercase()
+        } else {
+            // CASO 2: Só tem um nome (Ex: Tiago)
+            if (nomeLimpo.length >= 2) {
+                // Pega as duas primeiras letras
+                nomeLimpo.substring(0, 2).uppercase()
+            } else {
+                // Caso raro de nome com 1 letra, mostra só essa
+                nomeLimpo.uppercase()
+            }
+        }
+
+        textView.text = sigla
+
+        // Obriga a view a desenhar-se
+        val spec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        view.measure(spec, spec)
+        view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+
+        val bitmap = Bitmap.createBitmap(view.measuredWidth, view.measuredHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val paint = Paint()
-
-        paint.color = Color.parseColor("#444444")
-        paint.style = Paint.Style.FILL
-        paint.isAntiAlias = true
-        canvas.drawCircle(width / 2f, height / 2f, width / 2f, paint)
-
-        paint.color = Color.WHITE
-        paint.textSize = 60f
-        paint.textAlign = Paint.Align.CENTER
-        paint.typeface = Typeface.DEFAULT_BOLD
-
-        val xPos = width / 2f
-        val yPos = (height / 2f) - ((paint.descent() + paint.ascent()) / 2)
-        val letra = if (nome.isNotEmpty()) nome.first().toString().uppercase() else "?"
-
-        canvas.drawText(letra, xPos, yPos, paint)
+        view.draw(canvas)
 
         return BitmapDescriptorFactory.fromBitmap(bitmap)
     }
@@ -306,7 +306,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
-
         mMap.mapType = GoogleMap.MAP_TYPE_HYBRID
 
         mMap.uiSettings.apply {
@@ -383,11 +382,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     val lastUpd = userObj.optString("last_update", "Desconhecido")
 
                     val friendPos = LatLng(lat, lon)
+
+                    // --- AQUI APLICAMOS O NOVO ÍCONE ---
                     val marker = mMap.addMarker(MarkerOptions()
                         .position(friendPos)
                         .title(name)
-                        .icon(criarIconeCircular(name))
+                        .icon(getCustomMarkerBitmap(name)) // Chama a nova função
                         .anchor(0.5f, 0.5f))
+
                     if (marker != null) markersMap[friendId] = marker
 
                     val results = FloatArray(1)
