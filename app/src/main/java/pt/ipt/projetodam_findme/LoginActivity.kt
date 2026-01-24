@@ -1,3 +1,10 @@
+/**
+ * LoginActivity.kt
+ *
+ * Ecrã de autenticação da aplicação.
+ * Permite login com email/password ou através do Google Sign-In.
+ * Guarda os dados de sessão em SharedPreferences.
+ */
 package pt.ipt.projetodam_findme
 
 import android.content.Intent
@@ -29,7 +36,7 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var btnGoogleSignIn: SignInButton
     private lateinit var googleSignInClient: GoogleSignInClient
 
-    companion object { // <-- Add this block
+    companion object {
         private const val RC_SIGN_IN = 9001
         }
 
@@ -44,9 +51,9 @@ class LoginActivity : AppCompatActivity() {
         txtRegister = findViewById(R.id.txtRegister)
         btnGoogleSignIn = findViewById(R.id.btnGoogleSignIn)
 
-        // Configure Google Sign-In
+        // Configurar Google Sign-In
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken("1050226007080-844dg6rmgu34vgp5l4ra78fdm69taa2b.apps.googleusercontent.com") // <-- IMPORTANT
+        .requestIdToken("1050226007080-844dg6rmgu34vgp5l4ra78fdm69taa2b.apps.googleusercontent.com") // <-- IMPORTANTE
         .requestEmail()
         .build()
 
@@ -74,7 +81,7 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
-        // URL do teu servidor Azure
+        // URL do servidor Azure
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/login.php"
 
         val jsonBody = JSONObject().apply {
@@ -87,9 +94,8 @@ class LoginActivity : AppCompatActivity() {
             url,
             jsonBody,
             { response ->
-                // --- SUCESSO NA COMUNICAÇÃO ---
 
-                // O teu PHP envia "error" se falhar, ou "token" e "user" se acertar
+                // envia "error" se falhar, ou "token" e "user" se acertar
                 if (response.has("error")) {
                     val msgErro = response.getString("error")
                     Toast.makeText(this, msgErro, Toast.LENGTH_LONG).show()
@@ -106,7 +112,7 @@ class LoginActivity : AppCompatActivity() {
 
 
                         // ...
-// 2. Guardar TUDO nas SharedPreferences
+                        // 2. Guardar TUDO nas SharedPreferences
                         val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
                         sharedPreferences.edit(commit = true) {  // <--- CORREÇÃO AQUI
                             putBoolean("logado", true)

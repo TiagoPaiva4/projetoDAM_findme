@@ -1,3 +1,9 @@
+/**
+ * CreateGroupActivity.kt
+ *
+ * Ecrã para criação de novos grupos.
+ * Envia nome do grupo para o backend e adiciona o criador como membro.
+ */
 package pt.ipt.projetodam_findme
 
 import android.content.Intent

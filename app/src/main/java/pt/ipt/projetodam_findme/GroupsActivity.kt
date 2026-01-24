@@ -1,3 +1,9 @@
+/**
+ * GroupsActivity.kt
+ *
+ * Ecrã de listagem e gestão de grupos.
+ * Permite visualizar grupos existentes e criar novos.
+ */
 package pt.ipt.projetodam_findme
 
 import android.content.Intent

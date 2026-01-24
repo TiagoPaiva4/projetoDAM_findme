@@ -1,3 +1,9 @@
+/**
+ * ZonesAdapter.kt
+ *
+ * Adapter para RecyclerView que mostra a lista de zonas (geofences).
+ * Indica visualmente se a zona está ativa ou desativada.
+ */
 package pt.ipt.projetodam_findme
 
 import android.content.Context

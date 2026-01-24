@@ -1,3 +1,9 @@
+/**
+ * AddFriendActivity.kt
+ *
+ * Ecrã para enviar pedidos de amizade.
+ * Procura utilizador por email e envia pedido via backend.
+ */
 package pt.ipt.projetodam_findme
 
 import android.os.Bundle
@@ -51,7 +57,7 @@ class AddFriendActivity : AppCompatActivity() {
             return
         }
 
-        // URL do teu ficheiro PHP
+        // URL do ficheiro PHP
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/add_friend.php"
 
         val queue = Volley.newRequestQueue(this)

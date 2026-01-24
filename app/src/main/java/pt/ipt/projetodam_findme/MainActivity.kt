@@ -1,3 +1,16 @@
+/**
+ * MainActivity.kt
+ *
+ * Ecrã principal da aplicação FindMe.
+ * Apresenta o mapa com a localização do utilizador e dos seus amigos.
+ *
+ * Funcionalidades:
+ * - Mapa Google Maps com marcadores personalizados para cada amigo
+ * - Bottom sheet com lista de amigos e distâncias
+ * - Navegação para outras secções (Grupos, Zonas, Perfil)
+ * - Gestão de permissões de localização
+ * - Atualização em tempo real das posições
+ */
 package pt.ipt.projetodam_findme
 
 import android.Manifest
@@ -102,7 +115,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFragment = supportFragmentManager.findFragmentById(R.id.mapMain) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        // A verificação de permissão é feita aqui
+        // verificação de permissão
         checkLocationPermission()
     }
 
@@ -112,7 +125,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun setupUI() {
-        // Correção Navbar
         val navBarBottom = findViewById<LinearLayout>(R.id.navBarBottom)
         ViewCompat.setOnApplyWindowInsetsListener(navBarBottom) { view, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -120,7 +132,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             windowInsets
         }
 
-        // --- Configuração Bottom Sheet ---
+
         val bottomSheet = findViewById<LinearLayout>(R.id.bottomSheetFriends)
         sheetBehavior = BottomSheetBehavior.from(bottomSheet)
         sheetBehavior.peekHeight = dpToPx(240)
@@ -145,7 +157,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
-        // --- Configuração da Lista ---
+
         recyclerFriends = findViewById(R.id.recyclerFriends)
         recyclerFriends.layoutManager = LinearLayoutManager(this)
 
@@ -242,19 +254,34 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return (dp * density).toInt()
     }
 
-    // --- FUNÇÃO DO MARCADOR PERSONALIZADO ---
+    /**
+     * Cria um marcador personalizado com as iniciais do nome do utilizador.
+     *
+     * Processo:
+     * 1. Extrai as iniciais do nome (ex: "João Silva" -> "JS")
+     * 2. Se só tiver um nome, usa as primeiras 2 letras (ex: "Maria" -> "MA")
+     * 3. Infla o layout layout_custom_marker.xml com as iniciais
+     * 4. Converte a View para Bitmap para usar como ícone do marcador
+     *
+     * @param nome Nome completo do utilizador
+     * @return BitmapDescriptor para usar no marcador do Google Maps
+     */
     private fun getCustomMarkerBitmap(nome: String): BitmapDescriptor {
         val view = LayoutInflater.from(this).inflate(R.layout.layout_custom_marker, null)
         val textView = view.findViewById<TextView>(R.id.marker_text)
 
+        // Divide o nome em partes (palavras)
         val nomeLimpo = nome.trim()
         val partes = nomeLimpo.split("\\s+".toRegex())
 
+        // Gera as iniciais (2 caracteres)
         val sigla = if (partes.size >= 2) {
+            // Se tem 2+ nomes, usa primeira letra de cada
             val letra1 = partes[0].firstOrNull()?.toString() ?: ""
             val letra2 = partes[1].firstOrNull()?.toString() ?: ""
             (letra1 + letra2).uppercase()
         } else {
+            // Se só tem 1 nome, usa as primeiras 2 letras
             if (nomeLimpo.length >= 2) {
                 nomeLimpo.substring(0, 2).uppercase()
             } else {
@@ -264,6 +291,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         textView.text = sigla
 
+        // Mede e desenha a View para converter em Bitmap
         val spec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
         view.measure(spec, spec)
         view.layout(0, 0, view.measuredWidth, view.measuredHeight)

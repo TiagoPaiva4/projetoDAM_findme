@@ -1,3 +1,9 @@
+/**
+ * RequestsAdapter.kt
+ *
+ * Adapter para RecyclerView que mostra pedidos de amizade pendentes.
+ * Permite aceitar ou rejeitar cada pedido.
+ */
 package pt.ipt.projetodam_findme
 
 import android.view.LayoutInflater
@@ -20,7 +26,7 @@ class RequestsAdapter(
     private val onReject: (FriendRequest) -> Unit
 ) : RecyclerView.Adapter<RequestsAdapter.RequestViewHolder>() {
 
-    // AQUI ESTAVA O ERRO: Mudámos de Button para ImageButton
+
     class RequestViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvName: TextView = itemView.findViewById(R.id.tvRequestName) // Confirma se o ID no XML é tvRequestName ou tvName
         val btnAccept: ImageButton = itemView.findViewById(R.id.btnAccept)

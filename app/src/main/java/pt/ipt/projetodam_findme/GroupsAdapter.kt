@@ -1,3 +1,9 @@
+/**
+ * GroupsAdapter.kt
+ *
+ * Adapter para RecyclerView que mostra a lista de grupos.
+ * Exibe nome do grupo, número de membros e navega para detalhes.
+ */
 package pt.ipt.projetodam_findme
 
 import android.content.Context
@@ -13,11 +19,11 @@ data class Group(val id: Int, val name: String, val totalMembers: Int)
 
 class GroupsAdapter(
     private val groups: List<Group>,
-    private val context: Context // Adicionei o Contexto para poder iniciar Activities
+    private val context: Context
 ) : RecyclerView.Adapter<GroupsAdapter.GroupViewHolder>() {
 
     class GroupViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        // IDs definidos no teu item_group.xml
+
         val tvGroupInitial: TextView = itemView.findViewById(R.id.tvGroupInitial)
         val tvGroupName: TextView = itemView.findViewById(R.id.tvGroupName)
         val tvGroupDetails: TextView = itemView.findViewById(R.id.tvGroupDetails)

@@ -1,3 +1,10 @@
+/**
+ * MapsActivity.kt
+ *
+ * Ecrã de mapa para criação, visualização e edição de zonas.
+ * Suporta três modos: CREATE_ZONE, VIEW_ZONE e EDIT_ZONE.
+ * Utiliza algoritmo Ray Casting para deteção de ponto dentro do polígono.
+ */
 package pt.ipt.projetodam_findme
 
 import android.content.Intent
@@ -53,58 +60,58 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
 
-    // Mode state
+    // Estado do modo
     private var isCreateMode = false
     private var isViewMode = false
     private var isEditMode = false
     private var viewZone: Zone? = null
     private var editZone: Zone? = null
 
-    // Create mode state
+    // Estado do modo de criação
     private val polygonPoints = mutableListOf<LatLng>()
     private var currentPolygon: Polygon? = null
     private val markers = mutableListOf<Marker>()
 
-    // UI elements
+    // Elementos da UI
     private lateinit var tvInstruction: TextView
     private lateinit var drawingControls: LinearLayout
     private lateinit var btnUndo: Button
     private lateinit var btnClear: Button
     private lateinit var btnConfirm: Button
 
-    // User info
+    // Informação do utilizador
     private lateinit var userId: String
 
-    // Friends list for target selection
-    private val targetsList = mutableListOf<Pair<String, String>>() // id to name
+    // Lista de amigos para seleção de alvo
+    private val targetsList = mutableListOf<Pair<String, String>>()
 
-    // Location client for getting current user's location
+    // Cliente de localização
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
-    // Zone polygon reference for color updates
+    // Referência do polígono da zona para atualização de cor
     private var zonePolygon: Polygon? = null
 
-    // Real-time location tracking
+    // Rastreamento de localização em tempo real
     private var locationCallback: LocationCallback? = null
     private var userMarker: Marker? = null
     private var zonePoints: List<LatLng> = emptyList()
     private var monitoredUserName: String = "Utilizador"
     private val handler = Handler(Looper.getMainLooper())
     private var apiPollingRunnable: Runnable? = null
-    private val LOCATION_UPDATE_INTERVAL = 5000L // 5 seconds
+    private val LOCATION_UPDATE_INTERVAL = 5000L // 5 segundos
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_maps)
 
-        // Get User ID from session
+        // Obter ID do utilizador da sessão
         val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
         userId = sharedPreferences.getInt("id_user", -1).toString()
 
-        // Initialize location client
+        // Inicializar cliente de localização
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        // Check mode
+        // Verificar modo
         val mode = intent.getStringExtra("MODE")
         isCreateMode = mode == "CREATE_ZONE"
         isViewMode = mode == "VIEW_ZONE"
@@ -116,25 +123,25 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             if (isEditMode) editZone = zone
         }
 
-        // Get UI references
+        // Obter referências da UI
         tvInstruction = findViewById(R.id.tvInstruction)
         drawingControls = findViewById(R.id.drawingControls)
         btnUndo = findViewById(R.id.btnUndo)
         btnClear = findViewById(R.id.btnClear)
         btnConfirm = findViewById(R.id.btnConfirm)
 
-        // Setup button listeners
+        // Configurar listeners dos botões
         btnUndo.setOnClickListener { undoLastPoint() }
         btnClear.setOnClickListener { clearPolygon() }
         btnConfirm.setOnClickListener { confirmZoneCreation() }
 
-        // Setup navigation bar for view mode
+        // Configurar barra de navegação para modo de visualização
         val navBarBottom = findViewById<LinearLayout>(R.id.navBarBottom)
         if (isViewMode) {
             navBarBottom.visibility = View.VISIBLE
             setupNavigation()
 
-            // Handle system bar insets
+            // Ajustar padding para barras do sistema
             ViewCompat.setOnApplyWindowInsetsListener(navBarBottom) { view, insets ->
                 val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
                 val originalPadding = (10 * resources.displayMetrics.density).toInt()
@@ -143,7 +150,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
-        // Handle system bar insets for drawing controls (create/edit mode)
+        // Ajustar padding dos controlos de desenho (modo criar/editar)
         ViewCompat.setOnApplyWindowInsetsListener(drawingControls) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val originalPadding = (16 * resources.displayMetrics.density).toInt()
@@ -151,7 +158,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             insets
         }
 
-        // Initialize the map fragment
+        // Inicia o fragmento do mapa
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
@@ -197,31 +204,31 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         mMap.mapType = GoogleMap.MAP_TYPE_SATELLITE
 
         if (isCreateMode || isEditMode) {
-            // Show drawing UI
+            // Mostrar a interface de desenho
             tvInstruction.visibility = View.VISIBLE
             drawingControls.visibility = View.VISIBLE
 
-            // Set up map click listener for polygon drawing
+            // Configurar listener de clique no mapa para desenhar polígono
             mMap.setOnMapClickListener { latLng ->
                 addPolygonPoint(latLng)
             }
 
-            // Fetch friends for target selection
+            // Obter amigos para seleção de alvo
             fetchFriends()
 
             if (isEditMode && editZone != null) {
-                // Load existing polygon for editing
+                // Carregar polígono existente para edição
                 loadExistingPolygon(editZone!!)
             } else {
-                // Center on user's location or default to Tomar
+                // Centrar na localização do utilizador ou, por defeito, em Tomar
                 val tomar = LatLng(39.60, -8.41)
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tomar, 14f))
             }
         } else if (isViewMode && viewZone != null) {
-            // View zone mode - show zone polygon and user location
+            // Modo de visualização da zona – mostrar o polígono da zona e a localização do utilizador
             showZoneOnMap(viewZone!!)
         } else {
-            // Default view mode
+            // Modo de visualização por defeito
             val tomar = LatLng(39.60, -8.41)
             mMap.addMarker(MarkerOptions().position(tomar).title("Ola Tomar!"))
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tomar, 12f))
@@ -229,14 +236,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun loadExistingPolygon(zone: Zone) {
-        // Add all existing points to the polygon
+        // Adicionar todos os pontos existentes ao polígono
         zone.coordinates.forEach { coord ->
             val latLng = LatLng(coord.latitude, coord.longitude)
             addPolygonPoint(latLng)
         }
         tvInstruction.text = "Modifique o poligono ou confirme"
 
-        // Zoom to fit the polygon
+        // Ajustar o zoom para enquadrar o polígono
         if (zone.coordinates.isNotEmpty()) {
             val boundsBuilder = LatLngBounds.Builder()
             zone.coordinates.forEach { boundsBuilder.include(LatLng(it.latitude, it.longitude)) }
@@ -251,11 +258,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun showZoneOnMap(zone: Zone) {
-        // Store zone points for real-time updates
+        // Armazenar os pontos da zona para atualizações em tempo real
         zonePoints = zone.coordinates.map { LatLng(it.latitude, it.longitude) }
 
-        // Draw the zone polygon
-        // Gray color if zone is disabled, blue otherwise
+        // Desenhar o polígono da zona
+        // Cor cinza se a zona estiver desativada, azul caso contrário
         val strokeColor = if (zone.isActive) Color.parseColor("#3A8DDE") else Color.parseColor("#808080")
         val fillColor = if (zone.isActive) Color.parseColor("#403A8DDE") else Color.parseColor("#40808080")
 
@@ -269,28 +276,28 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             )
         }
 
-        // Only track location if zone is active
+        // Rastrear localização apenas se a zona estiver ativa
         if (zone.isActive) {
             startRealTimeLocationTracking(zone.associatedUserId)
         } else {
-            // Just zoom to zone without tracking
+            // aplicar zoom para a zona sem rastreio
             zoomToZone()
         }
     }
 
     /**
-     * Updates the zone polygon color based on whether the user is inside or outside
-     * Green = user is inside the zone
-     * Red = user is outside the zone
+     * Atualiza a cor do polígono da zona consoante se o utilizador está dentro ou fora
+     * Verde = utilizador está dentro da zona
+     * Vermelho = utilizador está fora da zona
      */
     private fun updateZonePolygonColor(isUserInside: Boolean) {
         zonePolygon?.let { polygon ->
             if (isUserInside) {
-                // Green when inside
+                // Verde quando dentro dentro da zona
                 polygon.strokeColor = Color.parseColor("#4CAF50")
                 polygon.fillColor = Color.parseColor("#404CAF50")
             } else {
-                // Red when outside
+                // Vermelho quando fora da zona
                 polygon.strokeColor = Color.parseColor("#F44336")
                 polygon.fillColor = Color.parseColor("#40F44336")
             }
@@ -298,7 +305,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     /**
-     * Ray casting algorithm to determine if a point is inside a polygon
+     * Algoritmo de ray casting para determinar se um ponto está dentro de um polígono
      */
     private fun isPointInPolygon(point: LatLng, polygon: List<LatLng>): Boolean {
         if (polygon.size < 3) return false
@@ -323,10 +330,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     /**
-     * Starts real-time location tracking for the monitored user
+     * Inicia o rastreio de localização em tempo real do utilizador monitorizado
      */
     private fun startRealTimeLocationTracking(monitoredUserId: String) {
-        // Get username from session if monitoring self
+        // Obter nome de utilizador a partir da sessão se estiver a monitorizar-se a si próprio
         val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
         monitoredUserName = if (monitoredUserId == userId) {
             sharedPreferences.getString("nome_user", "Eu") ?: "Eu"
@@ -335,19 +342,19 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         if (monitoredUserId == userId) {
-            // Self-monitoring: Use GPS location updates
+            // Auto-monitorização: Usar atualizações de localização GPS
             startSelfLocationUpdates()
         } else {
-            // Friend-monitoring: Poll API periodically
+            // Monitorização de amigos: Consultar a API periodicamente
             startFriendLocationPolling(monitoredUserId)
         }
 
-        // Initial zoom to zone
+        // Zoom inicial para a zona
         zoomToZone()
     }
 
     /**
-     * Starts GPS location updates for self-monitoring
+     * Inicia as atualizações de localização GPS para auto-monitorização
      */
     private fun startSelfLocationUpdates() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
@@ -376,7 +383,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     /**
-     * Starts periodic API polling for friend location
+     * Inicia a consulta periódica à API para a localização do amigo
      */
     private fun startFriendLocationPolling(monitoredUserId: String) {
         apiPollingRunnable = object : Runnable {
@@ -385,12 +392,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 handler.postDelayed(this, LOCATION_UPDATE_INTERVAL)
             }
         }
-        // Start immediately
+
         handler.post(apiPollingRunnable!!)
     }
 
     /**
-     * Fetches friend location from API
+     * Obtém a localização do amigo através da API
      */
     private fun fetchFriendLocation(monitoredUserId: String) {
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_users_locations.php?user_id=$userId"
@@ -422,10 +429,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     /**
-     * Updates the user marker position and polygon color
+     * Atualiza a posição do marcador do utilizador e a cor do polígono
      */
     private fun updateUserLocationOnMap(userLocation: LatLng) {
-        // Update or create marker
+        // Atualizar ou criar marcador
         if (userMarker == null) {
             userMarker = mMap.addMarker(
                 MarkerOptions()
@@ -437,13 +444,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             userMarker?.position = userLocation
         }
 
-        // Check if user is inside zone and update polygon color
+        // Verificar se o utilizador está dentro da zona e atualiza a cor do polígono
         val isInside = isPointInPolygon(userLocation, zonePoints)
         updateZonePolygonColor(isInside)
     }
 
     /**
-     * Zooms camera to fit the zone
+     * Ajusta o zoom da câmara para enquadrar a zona
      */
     private fun zoomToZone() {
         if (zonePoints.isEmpty()) return
@@ -459,16 +466,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     /**
-     * Stops real-time location tracking
+     * Interrompe o rastreio de localização em tempo real
      */
     private fun stopRealTimeLocationTracking() {
-        // Stop GPS updates
+        // Parar as atualizações do GPS
         locationCallback?.let {
             fusedLocationClient.removeLocationUpdates(it)
             locationCallback = null
         }
 
-        // Stop API polling
+        // Parar a consulta periódica à API
         apiPollingRunnable?.let {
             handler.removeCallbacks(it)
             apiPollingRunnable = null
@@ -484,7 +491,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onResume() {
         super.onResume()
-        // Resume tracking if we're in view mode and map is ready
+        // Retomar o rastreio se estivermos no modo de visualização e o mapa estiver pronto
         if (isViewMode && viewZone != null && ::mMap.isInitialized) {
             startRealTimeLocationTracking(viewZone!!.associatedUserId)
         }
@@ -495,10 +502,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         stopRealTimeLocationTracking()
     }
 
+    /**
+     * Adiciona um novo ponto ao polígono da zona.
+     * Chamado quando o utilizador toca no mapa durante modo CREATE ou EDIT.
+     *
+     * @param latLng Coordenadas do ponto tocado
+     */
     private fun addPolygonPoint(latLng: LatLng) {
         polygonPoints.add(latLng)
 
-        // Add numbered circle marker at the point
+        // Cria marcador circular numerado no ponto
         val pointNumber = polygonPoints.size
         val markerIcon = createNumberedCircleMarker(pointNumber)
         val marker = mMap.addMarker(
@@ -509,22 +522,26 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         )
         marker?.let { markers.add(it) }
 
-        // Redraw polygon
+        // Redesenha o polígono com o novo ponto
         redrawPolygon()
 
-        // Update instruction text
+        // Atualiza texto de instrução
         updateInstructionText()
     }
 
     /**
-     * Creates a blue circle bitmap with a number inside
+     * Cria um marcador circular azul com um número dentro.
+     * Usado para numerar os vértices do polígono durante a criação de zonas.
+     *
+     * @param number Número a mostrar dentro do círculo
+     * @return Bitmap do marcador circular
      */
     private fun createNumberedCircleMarker(number: Int): Bitmap {
         val size = (40 * resources.displayMetrics.density).toInt()
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        // Draw blue circle
+        // Desenhar círculo azul
         val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.parseColor("#3A8DDE")
             style = Paint.Style.FILL
@@ -532,7 +549,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         val radius = size / 2f
         canvas.drawCircle(radius, radius, radius - 2, circlePaint)
 
-        // Draw white border
+        // Desenhar contorno branco
         val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
             style = Paint.Style.STROKE
@@ -540,7 +557,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         canvas.drawCircle(radius, radius, radius - 2, borderPaint)
 
-        // Draw number
+        // Desenhar número
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
             textSize = size * 0.45f
@@ -553,23 +570,28 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         return bitmap
     }
 
+    /**
+     * Redesenha o polígono no mapa com os pontos atuais.
+     * Um polígono válido precisa de pelo menos 3 pontos.
+     * Reutiliza o polígono existente se possível (melhor performance).
+     */
     private fun redrawPolygon() {
         if (polygonPoints.size >= 3) {
             if (currentPolygon != null) {
-                // Reuse existing polygon - just update its points
+                // Reutiliza polígono existente - só atualiza os pontos
                 currentPolygon!!.points = polygonPoints
             } else {
-                // Create new polygon only if one doesn't exist
+                // Cria novo polígono se não existir
                 currentPolygon = mMap.addPolygon(
                     PolygonOptions()
                         .addAll(polygonPoints)
-                        .strokeColor(Color.parseColor("#3A8DDE"))
-                        .fillColor(Color.parseColor("#403A8DDE"))
+                        .strokeColor(Color.parseColor("#3A8DDE"))  // Azul
+                        .fillColor(Color.parseColor("#403A8DDE")) // Azul translúcido
                         .strokeWidth(4f)
                 )
             }
         } else {
-            // Less than 3 points - hide polygon if it exists
+            // Menos de 3 pontos - remove polígono se existir
             currentPolygon?.remove()
             currentPolygon = null
         }
@@ -600,7 +622,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         markers.forEach { it.remove() }
         markers.clear()
 
-        // Clear polygon by setting empty points, then remove
+        // Limpar o polígono definindo pontos vazios e, em seguida, remover
         currentPolygon?.let { polygon ->
             polygon.points = emptyList()
             polygon.remove()
@@ -625,7 +647,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         val request = JsonObjectRequest(Request.Method.GET, url, null, { response ->
             try {
                 targetsList.clear()
-                // Add self as first option
+
                 val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
                 val userName = sharedPreferences.getString("nome_user", "Eu") ?: "Eu"
                 targetsList.add(Pair(userId, "Eu ($userName)"))
@@ -641,12 +663,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             } catch (e: Exception) {
                 Log.e("MapsActivity", "Error fetching friends: ${e.message}")
-                // Add self anyway
+
                 targetsList.add(Pair(userId, "Eu (minha localizacao)"))
             }
         }, { error ->
             Log.e("MapsActivity", "Volley error: ${error.message}")
-            // Add self anyway
+
             targetsList.add(Pair(userId, "Eu (minha localizacao)"))
         })
 

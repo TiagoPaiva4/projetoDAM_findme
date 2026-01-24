@@ -1,3 +1,10 @@
+/**
+ * FriendsAdapter.kt
+ *
+ * Adapter para RecyclerView que mostra a lista de amigos.
+ * Inclui avatar com inicial, nome, cidade, distância e tempo relativo.
+ * Suporta rodapé opcional para adicionar amigos.
+ */
 package pt.ipt.projetodam_findme
 
 import android.content.Context
@@ -29,8 +36,6 @@ class FriendsAdapter(
     private val currentUserId: Int = -1,
     private val groupCreatorId: Int = -2,
     private val removeListener: ((Friend) -> Unit)? = null,
-    // [CORREÇÃO] O listener agora é opcional e null por defeito.
-    // Assim, o GroupDetailsActivity não crasha e não mostra o botão.
     private val addFriendListener: (() -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
@@ -50,7 +55,6 @@ class FriendsAdapter(
     class FooterViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView)
 
     override fun getItemViewType(position: Int): Int {
-        // [CORREÇÃO] Só mostra o rodapé se o listener existir E for a última posição
         return if (addFriendListener != null && position == friendsList.size) {
             TYPE_FOOTER
         } else {
@@ -121,7 +125,6 @@ class FriendsAdapter(
             }
 
         } else {
-            // [CORREÇÃO] Lógica do Rodapé (Botão Adicionar)
             // Só entra aqui se addFriendListener != null
             holder.itemView.setOnClickListener {
                 addFriendListener?.invoke()
@@ -130,7 +133,6 @@ class FriendsAdapter(
     }
 
     override fun getItemCount(): Int {
-        // [CORREÇÃO] Se não houver listener, o tamanho é apenas a lista (sem rodapé)
         return friendsList.size + if (addFriendListener != null) 1 else 0
     }
 

@@ -1,3 +1,14 @@
+/**
+ * LocationService.kt
+ *
+ * Serviço em primeiro plano para rastreamento contínuo de localização.
+ * Envia atualizações de posição para o backend e verifica geofences.
+ *
+ * Funcionalidades:
+ * - Atualização de localização a cada 5-10 segundos
+ * - Verificação de entrada/saída em zonas (geofencing)
+ * - Notificações de alerta quando o utilizador entra/sai de zonas
+ */
 package pt.ipt.projetodam_findme.services
 
 import android.app.NotificationChannel
@@ -42,14 +53,18 @@ class LocationService : Service() {
         createNotificationChannel()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
+        /**
+         * Callback chamado sempre que há uma nova localização GPS.
+         * Executado a cada 5-10 segundos conforme configurado em startLocationUpdates().
+         */
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { location ->
                     userId?.let { id ->
-                        // 1. Enviar localização para o backend (Tracking)
+                        // 1. Enviar localização para o backend para partilha com amigos
                         sendLocationToBackend(id, location.latitude, location.longitude)
 
-                        // 2. Verificar Geofences (Alertas)
+                        // 2. Verificar se entrou/saiu de alguma zona (geofencing)
                         checkGeofences(location.latitude, location.longitude)
                     }
                 }
@@ -148,31 +163,44 @@ class LocationService : Service() {
         return list
     }
 
-    // --- 2. VERIFICAR GEOFENCES (COM FILTRO 'isActive') ---
+    /**
+     * Verifica se o utilizador entrou ou saiu de alguma zona monitorizada.
+     *
+     * Lógica:
+     * 1. Para cada zona ativa, verifica se o ponto atual está dentro do polígono
+     * 2. Compara com o estado anterior guardado em SharedPreferences
+     * 3. Se houve mudança de estado (entrou/saiu), envia notificação
+     * 4. Guarda o novo estado para comparações futuras
+     *
+     * @param lat Latitude atual do utilizador
+     * @param lng Longitude atual do utilizador
+     */
     private fun checkGeofences(lat: Double, lng: Double) {
         val currentPoint = GeofenceManager.Point(lat, lng)
+        // SharedPreferences para guardar o último estado conhecido de cada zona
         val prefs = getSharedPreferences("GeofenceStatus", Context.MODE_PRIVATE)
         val editor = prefs.edit()
 
         for (zone in myZones) {
-
-            // [CORREÇÃO] Se a zona NÃO estiver ativa, ignoramos completamente
+            // Ignora zonas desativadas
             if (!zone.isActive) {
-                // Opcional: Se quiseres limpar o estado anterior para garantir que notifica quando reativar:
-                // editor.remove("zone_${zone.id}")
                 continue
             }
 
+            // Usa o algoritmo Ray Casting para verificar se está dentro
             val isInside = GeofenceManager.isPointInPolygon(currentPoint, zone.coordinates)
             val currentStatus = if (isInside) "inside" else "outside"
 
+            // Obtém o estado anterior (unknown se for a primeira verificação)
             val lastStatus = prefs.getString("zone_${zone.id}", "unknown")
 
+            // Só notifica se houve MUDANÇA de estado (e não é a primeira vez)
             if (lastStatus != "unknown" && lastStatus != currentStatus) {
                 val msg = if (isInside) "Entraste na zona: ${zone.name}" else "Saíste da zona: ${zone.name}"
                 sendNotification(msg)
             }
 
+            // Guarda o estado atual para a próxima comparação
             if (lastStatus != currentStatus) {
                 editor.putString("zone_${zone.id}", currentStatus)
                 editor.apply()

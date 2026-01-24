@@ -1,3 +1,9 @@
+/**
+ * AddMemberActivity.kt
+ *
+ * Ecrã para adicionar membros a um grupo.
+ * Permite selecionar amigos da lista ou adicionar por email.
+ */
 package pt.ipt.projetodam_findme
 
 import android.os.Bundle
@@ -30,7 +36,7 @@ class AddMemberActivity : AppCompatActivity() {
     private val friendsList = mutableListOf<SimpleFriend>()
     private lateinit var adapter: SelectFriendAdapter
 
-    // Simple data class for friends
+    // Classe de dados simples para amigos
     data class SimpleFriend(val id: Int, val name: String, val email: String)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,11 +50,11 @@ class AddMemberActivity : AppCompatActivity() {
             return
         }
 
-        // Get user ID from session
+        // Obter o ID do utilizador a partir da sessão
         val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
         userId = sharedPreferences.getInt("id_user", -1).toString()
 
-        // Setup UI
+        // Configurar a interface do utilizador
         val btnClose: ImageButton = findViewById(R.id.btnClose)
         val editEmail: EditText = findViewById(R.id.editEmail)
         val btnAddByEmail: Button = findViewById(R.id.btnAddByEmail)
@@ -56,7 +62,7 @@ class AddMemberActivity : AppCompatActivity() {
         recyclerFriends = findViewById(R.id.recyclerFriends)
         txtEmpty = findViewById(R.id.txtEmpty)
 
-        // Handle system bar insets for email section
+        // Gerir o sistema para a secção de e-mail
         ViewCompat.setOnApplyWindowInsetsListener(layoutEmail) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, bars.bottom + 16)
@@ -65,14 +71,14 @@ class AddMemberActivity : AppCompatActivity() {
 
         btnClose.setOnClickListener { finish() }
 
-        // Setup RecyclerView
+        // Configurar o RecyclerView
         recyclerFriends.layoutManager = LinearLayoutManager(this)
         adapter = SelectFriendAdapter(friendsList) { friend ->
             addMemberById(friend.id, friend.name)
         }
         recyclerFriends.adapter = adapter
 
-        // Add by email button
+        // Botão para adicionar por e-mail
         btnAddByEmail.setOnClickListener {
             val email = editEmail.text.toString().trim()
             if (email.isNotEmpty()) {
@@ -82,7 +88,7 @@ class AddMemberActivity : AppCompatActivity() {
             }
         }
 
-        // Load friends
+        // Carregar amigos
         fetchFriends()
     }
 
@@ -186,7 +192,7 @@ class AddMemberActivity : AppCompatActivity() {
         }
     }
 
-    // Simple adapter for selecting friends
+    // Adaptador simples para selecionar amigos
     inner class SelectFriendAdapter(
         private val friends: List<SimpleFriend>,
         private val onFriendClick: (SimpleFriend) -> Unit

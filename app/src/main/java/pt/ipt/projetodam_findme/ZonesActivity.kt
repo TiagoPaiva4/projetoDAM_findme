@@ -1,3 +1,9 @@
+/**
+ * ZonesActivity.kt
+ *
+ * Ecrã de gestão de zonas (geofences).
+ * Lista as zonas do utilizador e permite criar, editar, eliminar e ativar/desativar.
+ */
 package pt.ipt.projetodam_findme
 
 import android.content.Intent
@@ -33,11 +39,11 @@ class ZonesActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_zones)
 
-        // Get User ID from session
+        // Obter ID do utilizador da sessão
         val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
         userId = sharedPreferences.getInt("id_user", -1).toString()
 
-        // Setup RecyclerView
+        // Configurar RecyclerView
         zonesRecyclerView = findViewById(R.id.zones_recycler_view)
         zonesRecyclerView.layoutManager = LinearLayoutManager(this)
         zonesAdapter = ZonesAdapter(
@@ -55,7 +61,7 @@ class ZonesActivity : AppCompatActivity() {
         )
         zonesRecyclerView.adapter = zonesAdapter
 
-        // Setup FAB
+        // Configurar FAB
         fabAddZone = findViewById(R.id.fab_add_zone)
         fabAddZone.setOnClickListener {
             val intent = Intent(this, MapsActivity::class.java)
@@ -63,7 +69,7 @@ class ZonesActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Setup navigation bar padding for system bars
+        // Configurar padding da barra de navegação para barras do sistema
         val navBarBottom = findViewById<LinearLayout>(R.id.navBarBottom)
         ViewCompat.setOnApplyWindowInsetsListener(navBarBottom) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -72,10 +78,10 @@ class ZonesActivity : AppCompatActivity() {
             insets
         }
 
-        // Setup navigation
+        // Configurar navegação
         setupNavigation()
 
-        // Fetch zones
+        // Carregar zonas
         fetchZones()
     }
 
@@ -97,7 +103,7 @@ class ZonesActivity : AppCompatActivity() {
             finish()
         }
 
-        // Zona -> Scroll to top (current screen)
+        // Zona -> Scroll para o topo (ecrã atual)
         findViewById<LinearLayout>(R.id.navZona).setOnClickListener {
             zonesRecyclerView.smoothScrollToPosition(0)
         }
@@ -141,7 +147,7 @@ class ZonesActivity : AppCompatActivity() {
                         zonesList.add(Zone(id, name, adminId, areaUserId, coordinates, isActive))
                     }
                 }
-                // Sort: active zones first, inactive at the bottom
+                // Ordenar: zonas ativas primeiro, desativadas no fundo
                 zonesList.sortBy { !it.isActive }
                 zonesAdapter.notifyDataSetChanged()
 
@@ -173,7 +179,7 @@ class ZonesActivity : AppCompatActivity() {
         val popup = PopupMenu(this, anchorView)
         popup.menuInflater.inflate(R.menu.menu_zone_options, popup.menu)
 
-        // Update toggle text based on current state
+        // Atualizar texto do botão com base no estado atual
         val toggleItem = popup.menu.findItem(R.id.action_toggle)
         toggleItem.title = if (zone.isActive) "Desativar" else "Ativar"
 

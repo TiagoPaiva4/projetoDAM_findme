@@ -1,3 +1,9 @@
+/**
+ * RegisterActivity.kt
+ *
+ * Ecrã de registo de novos utilizadores.
+ * Valida os dados inseridos e envia para o backend.
+ */
 package pt.ipt.projetodam_findme
 
 import android.content.Intent
@@ -89,7 +95,7 @@ class RegisterActivity : AppCompatActivity() {
         val email = editEmail.text.toString().trim()
         val password = editPassword.text.toString().trim()
 
-        // URL do teu servidor Azure (Verifica se o caminho está correto)
+        // URL do servidor Azure
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/register.php"
 
         val jsonBody = JSONObject().apply {
@@ -109,8 +115,8 @@ class RegisterActivity : AppCompatActivity() {
                 } else {
                     Toast.makeText(this, "Conta criada com sucesso!", Toast.LENGTH_SHORT).show()
 
-                    // Opcional: Já fazer login automático ou enviar para o ecrã de login
-                    // Vamos enviar para o Login e preencher o email
+
+                    // enviar para o Login e preencher o email
                     val intent = Intent(this, LoginActivity::class.java)
                     intent.putExtra("email_registado", email)
                     startActivity(intent)

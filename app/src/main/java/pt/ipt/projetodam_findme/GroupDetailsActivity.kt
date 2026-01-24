@@ -1,3 +1,10 @@
+/**
+ * GroupDetailsActivity.kt
+ *
+ * Ecrã de detalhes de um grupo.
+ * Mostra mapa com localização dos membros, permite adicionar/remover membros
+ * e sair/eliminar o grupo.
+ */
 package pt.ipt.projetodam_findme
 
 import android.Manifest
@@ -153,7 +160,7 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
             removeMember(friend.id, friend.name)
         }
 
-        // [NOTA] Não passamos addFriendListener aqui, por isso o botão não aparece
+
         membersAdapter = FriendsAdapter(
             friendsList = membersList,
             clickListener = { member ->
@@ -305,7 +312,7 @@ class GroupDetailsActivity : AppCompatActivity(), OnMapReadyCallback {
                 membersList.sortByDescending { it.distanceMeters > 0f }
 
                 val removeMemberAction: (Friend) -> Unit = { friend -> removeMember(friend.id, friend.name) }
-                // [NOTA] Recriamos o adapter sem passar listener, pois é grupo
+                // Recriamos o adapter sem passar listener, pois é grupo
                 membersAdapter = FriendsAdapter(
                     friendsList = membersList,
                     clickListener = { member ->

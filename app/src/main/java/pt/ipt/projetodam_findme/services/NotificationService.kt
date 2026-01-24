@@ -1,3 +1,10 @@
+/**
+ * NotificationService.kt
+ *
+ * Serviço em primeiro plano para verificar novos pedidos de amizade.
+ * Envia notificações push quando há pedidos pendentes.
+ * Verifica a cada 60 segundos para poupar bateria.
+ */
 package pt.ipt.projetodam_findme.services
 
 import android.app.Notification

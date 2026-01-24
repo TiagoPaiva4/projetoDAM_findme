@@ -1,3 +1,10 @@
+/**
+ * ProfileActivity.kt
+ *
+ * Ecrã de perfil do utilizador.
+ * Mostra a localização atual, permite ativar/desativar partilha,
+ * gerir pedidos de amizade e fazer logout.
+ */
 package pt.ipt.projetodam_findme
 
 import android.Manifest
@@ -157,7 +164,7 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         // 6. Configurar Lista de Pedidos
         recyclerRequests.layoutManager = LinearLayoutManager(this)
 
-        // CORREÇÃO: Usar "accept" e "reject" em vez de "accepted"/"rejected"
+
         adapter = RequestsAdapter(requestsList,
             onAccept = { req -> gerirPedido(req, "accept") },
             onReject = { req -> gerirPedido(req, "reject") }
@@ -181,7 +188,7 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
             val intent = Intent(this, GroupsActivity::class.java)
             startActivity(intent)
             overridePendingTransition(0, 0)
-            finish() // Fechamos o Profile para não acumular pilhas de activities
+            finish()
         }
 
         findViewById<LinearLayout>(R.id.navZona).setOnClickListener {
@@ -191,7 +198,7 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
             finish()
         }
 
-        // Opcional: Se clicares no "EU" (onde já estás), podes apenas fazer scroll para o topo
+
         findViewById<LinearLayout>(R.id.navEu).setOnClickListener {
             findViewById<NestedScrollView>(R.id.nestedScrollView).smoothScrollTo(0, 0)
         }
@@ -316,7 +323,6 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
             { Toast.makeText(this, "Erro ao processar", Toast.LENGTH_SHORT).show() }
         ) {
             override fun getParams(): MutableMap<String, String> {
-                // CORREÇÃO: Usar "id_friendship" em vez de "request_id"
                 return mutableMapOf(
                     "id_friendship" to request.id.toString(),
                     "action" to action
