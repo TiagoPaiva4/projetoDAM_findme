@@ -51,29 +51,20 @@
                 tools:itemCount="5"
                 tools:listitem="@layout/item_group" />
 
-            <!-- 2. BOTÃO: CRIAR NOVO GRUPO -->
-            <!-- Agora aparece apenas no fim da lista (tens de fazer scroll se a lista for grande) -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCreateGroup"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:layout_marginBottom="10dp"
-                android:text="Criar novo grupo"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:textAllCaps="false"
-                android:paddingVertical="12dp"
-                app:backgroundTint="#3A8DDE"
-                app:cornerRadius="15dp"
-                app:icon="@drawable/ic_plus"
-                app:iconTint="#FFFFFF"
-                app:iconGravity="textStart"
-                app:iconPadding="8dp"
-                android:elevation="4dp"/>
-
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
+    <!-- FAB PARA CRIAR GRUPO -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_add_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:src="@drawable/ic_add_circle"
+        app:tint="@android:color/white"
+        app:layout_constraintBottom_toTopOf="@+id/navBarBottom"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- BARRA DE NAVEGAÇÃO (Fixa em baixo) -->
     <LinearLayout

@@ -3,9 +3,9 @@ package pt.ipt.projetodam_findme
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -45,9 +45,9 @@ class GroupsActivity : AppCompatActivity() {
         groupsAdapter = GroupsAdapter(groupsList, this)
         recyclerGroups.adapter = groupsAdapter
 
-        // 4. Botão Criar Grupo
-        val btnCreate = findViewById<Button>(R.id.btnCreateGroup)
-        btnCreate.setOnClickListener {
+        // 4. FAB Criar Grupo
+        val fabAddGroup = findViewById<FloatingActionButton>(R.id.fab_add_group)
+        fabAddGroup.setOnClickListener {
             val intent = Intent(this, CreateGroupActivity::class.java)
             startActivity(intent)
         }
