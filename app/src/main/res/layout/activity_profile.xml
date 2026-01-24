@@ -234,7 +234,92 @@
                     android:textColor="#FF3B30"
                     android:backgroundTint="#FFFFFF"
                     app:cornerRadius="12dp"
-                    android:layout_marginBottom="24dp"/>
+                    android:layout_marginBottom="12dp"/>
+
+                <!-- Credits Info Card -->
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="#FFFFFF"
+                    app:cardCornerRadius="14dp"
+                    app:cardElevation="4dp"
+                    android:layout_marginBottom="24dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Créditos"
+                            android:textColor="#8E8E93"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Engenharia Informática"
+                            android:textColor="#000000"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Desenvolvimento de Aplicações Móveis\n3º Ano, 1º Semestre"
+                            android:textColor="#8E8E93"
+                            android:textSize="13sp"
+                            android:layout_marginBottom="12dp" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E5E5EA"
+                            android:layout_marginBottom="12dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Autores"
+                            android:textColor="#8E8E93"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="8dp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Mário Fernandes Bonacho - Nº 26471\nTiago Filipe Oliveira Paiva - Nº 25958"
+                            android:textColor="#404040"
+                            android:textSize="14sp"
+                            android:lineSpacingExtra="4dp"
+                            android:layout_marginBottom="12dp" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E5E5EA"
+                            android:layout_marginBottom="12dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Bibliotecas"
+                            android:textColor="#8E8E93"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="8dp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="• Volley 1.2.1 - github.com/google/volley\n• Google Maps SDK 18.2.0\n• Play Services Location 21.0.1\n• Play Services Auth 20.7.0\n• BlurView 2.0.3 - github.com/Dimezis/BlurView\n• Material Components 1.10.0"
+                            android:textColor="#8E8E93"
+                            android:textSize="12sp"
+                            android:lineSpacingExtra="3dp" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
             </LinearLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
