@@ -40,7 +40,7 @@ class LocationService : Service() {
     private lateinit var locationCallback: LocationCallback
     private var userId: String? = null
 
-    // Lista de zonas para monitorizar
+
     private var myZones: MutableList<Zone> = mutableListOf()
 
     companion object {
@@ -53,18 +53,15 @@ class LocationService : Service() {
         createNotificationChannel()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        /**
-         * Callback chamado sempre que há uma nova localização GPS.
-         * Executado a cada 5-10 segundos conforme configurado em startLocationUpdates().
-         */
+
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { location ->
                     userId?.let { id ->
-                        // 1. Enviar localização para o backend para partilha com amigos
+                        // Envia localização para o backend para partilha com amigos
                         sendLocationToBackend(id, location.latitude, location.longitude)
 
-                        // 2. Verificar se entrou/saiu de alguma zona (geofencing)
+                        // Verifica se entrou/saiu de alguma zona (geofencing)
                         checkGeofences(location.latitude, location.longitude)
                     }
                 }
@@ -75,7 +72,6 @@ class LocationService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         userId = intent?.getStringExtra("USER_ID")
 
-        // Notificação persistente do serviço (Obrigatório Android mais recentes)
         val notification = createServiceNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, notification,
@@ -85,7 +81,6 @@ class LocationService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        // Carregar zonas assim que o serviço inicia
         userId?.let { fetchUserZones(it) }
 
         startLocationUpdates()
@@ -104,11 +99,10 @@ class LocationService : Service() {
                 Looper.getMainLooper()
             )
         } catch (e: SecurityException) {
-            e.printStackTrace()
+
         }
     }
 
-    // --- 1. LER ZONAS E O SEU ESTADO (ATIVO/INATIVO) ---
     private fun fetchUserZones(id: String) {
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/get_user_areas.php?user_id=$id"
 
@@ -123,9 +117,6 @@ class LocationService : Service() {
                         val coordsJson = obj.getString("coordinates")
                         val coordsList = parseCoordinates(coordsJson)
 
-                        // [CORREÇÃO] Ler o campo 'is_active'.
-                        // O PHP costuma mandar 0 ou 1. Convertemos para Boolean.
-                        // Se o campo não existir, assumimos 'true' por segurança.
                         val isActiveInt = obj.optInt("is_active", 1)
                         val isActive = (isActiveInt == 1)
 
@@ -135,7 +126,7 @@ class LocationService : Service() {
                             adminId = obj.optString("admin_id", ""),
                             associatedUserId = obj.optString("user_id", ""),
                             coordinates = coordsList,
-                            isActive = isActive // Passamos o valor lido para a classe Zone
+                            isActive = isActive
                         ))
                     }
                     Log.d("LocationService", "Zonas carregadas: ${myZones.size}")
@@ -158,49 +149,32 @@ class LocationService : Service() {
                 ))
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+
         }
         return list
     }
 
-    /**
-     * Verifica se o utilizador entrou ou saiu de alguma zona monitorizada.
-     *
-     * Lógica:
-     * 1. Para cada zona ativa, verifica se o ponto atual está dentro do polígono
-     * 2. Compara com o estado anterior guardado em SharedPreferences
-     * 3. Se houve mudança de estado (entrou/saiu), envia notificação
-     * 4. Guarda o novo estado para comparações futuras
-     *
-     * @param lat Latitude atual do utilizador
-     * @param lng Longitude atual do utilizador
-     */
+
     private fun checkGeofences(lat: Double, lng: Double) {
         val currentPoint = GeofenceManager.Point(lat, lng)
-        // SharedPreferences para guardar o último estado conhecido de cada zona
         val prefs = getSharedPreferences("GeofenceStatus", Context.MODE_PRIVATE)
         val editor = prefs.edit()
 
         for (zone in myZones) {
-            // Ignora zonas desativadas
             if (!zone.isActive) {
                 continue
             }
 
-            // Usa o algoritmo Ray Casting para verificar se está dentro
             val isInside = GeofenceManager.isPointInPolygon(currentPoint, zone.coordinates)
             val currentStatus = if (isInside) "inside" else "outside"
 
-            // Obtém o estado anterior (unknown se for a primeira verificação)
             val lastStatus = prefs.getString("zone_${zone.id}", "unknown")
 
-            // Só notifica se houve MUDANÇA de estado (e não é a primeira vez)
             if (lastStatus != "unknown" && lastStatus != currentStatus) {
                 val msg = if (isInside) "Entraste na zona: ${zone.name}" else "Saíste da zona: ${zone.name}"
                 sendNotification(msg)
             }
 
-            // Guarda o estado atual para a próxima comparação
             if (lastStatus != currentStatus) {
                 editor.putString("zone_${zone.id}", currentStatus)
                 editor.apply()

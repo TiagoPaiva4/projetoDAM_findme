@@ -46,11 +46,9 @@ class ZonesAdapter(
             holder.tvZoneInitial.text = "?"
         }
 
-        // Show status in details
         val statusText = if (zone.isActive) "Ativa" else "Desativada"
         holder.tvZoneDetails.text = "Status: $statusText"
 
-        // Visual indicator for disabled zones
         if (zone.isActive) {
             holder.tvZoneInitial.alpha = 1.0f
             holder.tvZoneName.alpha = 1.0f

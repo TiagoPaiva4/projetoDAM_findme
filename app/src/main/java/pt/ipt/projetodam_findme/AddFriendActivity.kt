@@ -31,10 +31,8 @@ class AddFriendActivity : AppCompatActivity() {
         btnSend = findViewById(R.id.btnSendRequest)
         btnClose = findViewById(R.id.btnClose)
 
-        // Botão para fechar o ecrã
         btnClose.setOnClickListener { finish() }
 
-        // Botão para enviar
         btnSend.setOnClickListener {
             enviarPedido()
         }
@@ -57,7 +55,7 @@ class AddFriendActivity : AppCompatActivity() {
             return
         }
 
-        // URL do ficheiro PHP
+
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/add_friend.php"
 
         val queue = Volley.newRequestQueue(this)
@@ -67,11 +65,9 @@ class AddFriendActivity : AppCompatActivity() {
                 try {
                     val json = JSONObject(response)
                     if (json.has("success")) {
-                        // SUCESSO
                         Toast.makeText(this, json.getString("success"), Toast.LENGTH_LONG).show()
-                        finish() // Fecha o ecrã e volta ao mapa
+                        finish()
                     } else if (json.has("error")) {
-                        // ERRO DO SERVIDOR (ex: email não existe)
                         Toast.makeText(this, json.getString("error"), Toast.LENGTH_LONG).show()
                     }
                 } catch (e: Exception) {

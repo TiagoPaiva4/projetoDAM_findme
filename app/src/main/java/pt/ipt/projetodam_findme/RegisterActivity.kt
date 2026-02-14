@@ -32,7 +32,6 @@ class RegisterActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_register)
 
-        // Inicializar vistas
         editName = findViewById(R.id.editName)
         editEmail = findViewById(R.id.editEmail)
         editPassword = findViewById(R.id.editPassword)
@@ -40,20 +39,17 @@ class RegisterActivity : AppCompatActivity() {
         btnRegister = findViewById(R.id.btnRegister)
         txtLoginLink = findViewById(R.id.txtLoginLink)
 
-        // Ação do Botão Registar
         btnRegister.setOnClickListener {
             if (validateInputs()) {
                 registerUser()
             }
         }
 
-        // Ação do Link "Entrar agora" (Voltar ao Login)
         txtLoginLink.setOnClickListener {
-            finish() // Fecha esta atividade e volta ao Login que está por trás
+            finish()
         }
     }
 
-    // --- FUNÇÃO DE VALIDAÇÃO ---
     private fun validateInputs(): Boolean {
         val name = editName.text.toString().trim()
         val email = editEmail.text.toString().trim()
@@ -62,25 +58,21 @@ class RegisterActivity : AppCompatActivity() {
 
         var isValid = true
 
-        // 1. Validar Nome
         if (name.isEmpty()) {
             editName.error = "O nome é obrigatório"
             isValid = false
         }
 
-        // 2. Validar Email (Usa Patterns do Android para verificar formato a@b.c)
         if (email.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             editEmail.error = "Insira um email válido"
             isValid = false
         }
 
-        // 3. Validar Password (Minimo 8 caracteres)
         if (password.length < 8) {
             editPassword.error = "A password deve ter pelo menos 8 caracteres"
             isValid = false
         }
 
-        // 4. Validar se as Passwords coincidem
         if (password != confirmPass) {
             editConfirmPassword.error = "As passwords não coincidem"
             isValid = false
@@ -89,13 +81,11 @@ class RegisterActivity : AppCompatActivity() {
         return isValid
     }
 
-    // --- FUNÇÃO DE REGISTO (BACKEND) ---
     private fun registerUser() {
         val name = editName.text.toString().trim()
         val email = editEmail.text.toString().trim()
         val password = editPassword.text.toString().trim()
 
-        // URL do servidor Azure
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/register.php"
 
         val jsonBody = JSONObject().apply {
@@ -109,14 +99,13 @@ class RegisterActivity : AppCompatActivity() {
             url,
             jsonBody,
             { response ->
-                // Sucesso
+
                 if (response.has("error")) {
                     Toast.makeText(this, response.getString("error"), Toast.LENGTH_LONG).show()
                 } else {
                     Toast.makeText(this, "Conta criada com sucesso!", Toast.LENGTH_SHORT).show()
 
 
-                    // enviar para o Login e preencher o email
                     val intent = Intent(this, LoginActivity::class.java)
                     intent.putExtra("email_registado", email)
                     startActivity(intent)
@@ -124,9 +113,9 @@ class RegisterActivity : AppCompatActivity() {
                 }
             },
             { error ->
-                // Erro
+
                 Toast.makeText(this, "Erro ao registar: ${error.message}", Toast.LENGTH_LONG).show()
-                error.printStackTrace()
+
             }
         )
 

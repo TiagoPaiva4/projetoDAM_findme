@@ -46,7 +46,7 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var userId: String
 
-    // Variáveis da morada
+
     private lateinit var tvStreet: TextView
     private lateinit var tvCityZip: TextView
 
@@ -57,7 +57,7 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
     private val requestsList = ArrayList<FriendRequest>()
     private lateinit var mMap: GoogleMap
 
-    // Variáveis para a funcionalidade Expandir/Recolher
+
     private lateinit var btnExpandMore: ImageView
     private lateinit var layoutMoreOptions: LinearLayout
 
@@ -65,7 +65,6 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_profile)
 
-        // Ajuste da Navbar (Padding inferior)
         val navBarBottom = findViewById<LinearLayout>(R.id.navBarBottom)
         ViewCompat.setOnApplyWindowInsetsListener(navBarBottom) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -74,7 +73,6 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
             insets
         }
 
-        // SOLUÇÃO ZOOM E SCROLL (Intercetar toques)
         val mapContainer = findViewById<View>(R.id.mapProfile)
         val viewMapTouch = findViewById<View>(R.id.viewMapTouch)
         val nestedScrollView = findViewById<NestedScrollView>(R.id.nestedScrollView)
@@ -94,16 +92,16 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
             true
         }
 
-        // 1. Inicializar Mapa
+
         val mapFragment = supportFragmentManager.findFragmentById(R.id.mapProfile) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        // 2. Dados de Sessão
+
         val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
         userId = sharedPreferences.getInt("id_user", -1).toString()
         val isSharing = sharedPreferences.getBoolean("share_location", true)
 
-        // 3. Vincular Views
+
         tvStreet = findViewById(R.id.tvStreet)
         tvCityZip = findViewById(R.id.tvCityZip)
         switchLocation = findViewById(R.id.switchLocation)
@@ -113,7 +111,7 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         btnExpandMore = findViewById(R.id.btnExpandMore)
         layoutMoreOptions = findViewById(R.id.layoutMoreOptions)
 
-        // 4. Lógica de Expandir/Recolher
+
         btnExpandMore.setOnClickListener {
             if (layoutMoreOptions.visibility == View.VISIBLE) {
                 layoutMoreOptions.visibility = View.GONE
@@ -124,44 +122,37 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
-        // 5. Configurar Switch de Partilha
-        // Função auxiliar local para mudar a cor
+
         fun atualizarCorSwitch(checked: Boolean) {
             val corHex = if (checked) "#34C759" else "#FF3B30" // Verde ou Vermelho
             switchLocation.trackTintList = ColorStateList.valueOf(Color.parseColor(corHex))
         }
 
-        // Definir estado inicial
+
         switchLocation.isChecked = isSharing
         tvShareStatus.text = if (isSharing) "Ativa" else "Inativa"
         atualizarCorSwitch(isSharing)
 
-        // Listener de mudança
+
         switchLocation.setOnCheckedChangeListener { _, isChecked ->
-            // 1. Guardar a preferência
             sharedPreferences.edit().putBoolean("share_location", isChecked).apply()
 
-            // 2. Atualizar UI (Texto e Cor)
             val status = if (isChecked) "Ativa" else "Inativa"
             tvShareStatus.text = status
             atualizarCorSwitch(isChecked)
 
-            // 3. Lógica para LIGAR ou DESLIGAR o Serviço
             val serviceIntent = Intent(this, pt.ipt.projetodam_findme.services.LocationService::class.java)
 
             if (isChecked) {
-                // SE LIGADO: Inicia o serviço
                 serviceIntent.putExtra("USER_ID", userId)
                 androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent)
                 Toast.makeText(this, "Partilha de localização iniciada", Toast.LENGTH_SHORT).show()
             } else {
-                // SE DESLIGADO: Mata o serviço imediatamente
                 stopService(serviceIntent)
                 Toast.makeText(this, "Partilha de localização parada", Toast.LENGTH_SHORT).show()
             }
         }
 
-        // 6. Configurar Lista de Pedidos
         recyclerRequests.layoutManager = LinearLayoutManager(this)
 
 
@@ -171,11 +162,9 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
         )
         recyclerRequests.adapter = adapter
 
-        // 7. Carregar Dados
         obterMoradaAtual()
         carregarPedidos()
 
-        // 8. Navegação (Atualizado)
         findViewById<LinearLayout>(R.id.navPessoas).setOnClickListener {
             val intent = Intent(this, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -203,7 +192,6 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
             findViewById<NestedScrollView>(R.id.nestedScrollView).smoothScrollTo(0, 0)
         }
 
-        // 9. Botão de Logout
         findViewById<Button>(R.id.btnLogout).setOnClickListener {
             sharedPreferences.edit().clear().apply()
             val intent = Intent(this, LoginActivity::class.java)
@@ -315,7 +303,6 @@ class ProfileActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val postRequest = object : StringRequest(Method.POST, url,
             {
-                // Verifica a ação correta para a mensagem
                 val msg = if (action == "accept") "Pedido aceite" else "Pedido recusado"
                 Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
                 carregarPedidos()

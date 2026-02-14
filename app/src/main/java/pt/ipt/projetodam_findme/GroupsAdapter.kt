@@ -38,20 +38,16 @@ class GroupsAdapter(
     override fun onBindViewHolder(holder: GroupViewHolder, position: Int) {
         val group = groups[position]
 
-        // 1. Nome do Grupo
         holder.tvGroupName.text = group.name
 
-        // 2. Detalhes (Membros)
         holder.tvGroupDetails.text = "${group.totalMembers} membros"
 
-        // 3. Primeira Letra (Ícone)
         if (group.name.isNotEmpty()) {
             holder.tvGroupInitial.text = group.name.first().toString().uppercase()
         } else {
             holder.tvGroupInitial.text = "?"
         }
 
-        // 4. Clique no item -> Abrir Detalhes
         holder.itemView.setOnClickListener {
             val intent = Intent(context, GroupDetailsActivity::class.java)
             intent.putExtra("GROUP_ID", group.id)

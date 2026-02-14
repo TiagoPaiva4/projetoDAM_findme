@@ -32,10 +32,8 @@ class CreateGroupActivity : AppCompatActivity() {
         btnCreateGroup = findViewById(R.id.btnCreateGroup)
         btnCloseGroup = findViewById(R.id.btnCloseGroup)
 
-        // Botão para fechar o ecrã
         btnCloseGroup.setOnClickListener { finish() }
 
-        // Botão para criar o grupo
         btnCreateGroup.setOnClickListener {
             createGroup()
         }
@@ -58,7 +56,6 @@ class CreateGroupActivity : AppCompatActivity() {
             return
         }
 
-        // URL do seu ficheiro create_group.php
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/create_group.php"
 
         val queue = Volley.newRequestQueue(this)
@@ -68,15 +65,12 @@ class CreateGroupActivity : AppCompatActivity() {
                 try {
                     val json = JSONObject(response)
                     if (json.has("success")) {
-                        // SUCESSO
                         Toast.makeText(this, json.getString("success"), Toast.LENGTH_LONG).show()
 
-                        // Sinaliza para MainActivity atualizar a lista
                         setResult(RESULT_OK)
                         finish()
 
                     } else if (json.has("error")) {
-                        // ERRO DO SERVIDOR
                         Toast.makeText(this, json.getString("error"), Toast.LENGTH_LONG).show()
                     }
                 } catch (e: Exception) {
@@ -88,7 +82,6 @@ class CreateGroupActivity : AppCompatActivity() {
             }
         ) {
             override fun getParams(): MutableMap<String, String> {
-                // Envia o nome do grupo e o ID do criador
                 return mutableMapOf(
                     "name" to groupName,
                     "user_id" to myId.toString()

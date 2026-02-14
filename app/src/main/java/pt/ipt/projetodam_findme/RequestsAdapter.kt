@@ -13,7 +13,7 @@ import android.widget.ImageButton
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-// Modelo de dados simples para o pedido
+
 data class FriendRequest(
     val id: Int,
     val senderId: Int,
@@ -28,7 +28,7 @@ class RequestsAdapter(
 
 
     class RequestViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvName: TextView = itemView.findViewById(R.id.tvRequestName) // Confirma se o ID no XML é tvRequestName ou tvName
+        val tvName: TextView = itemView.findViewById(R.id.tvRequestName)
         val btnAccept: ImageButton = itemView.findViewById(R.id.btnAccept)
         val btnReject: ImageButton = itemView.findViewById(R.id.btnReject)
     }
@@ -42,15 +42,12 @@ class RequestsAdapter(
     override fun onBindViewHolder(holder: RequestViewHolder, position: Int) {
         val request = requests[position]
 
-        // Define o nome da pessoa
         holder.tvName.text = request.name
 
-        // Configura o clique no botão de aceitar
         holder.btnAccept.setOnClickListener {
             onAccept(request)
         }
 
-        // Configura o clique no botão de rejeitar
         holder.btnReject.setOnClickListener {
             onReject(request)
         }

@@ -39,11 +39,11 @@ class ZonesActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_zones)
 
-        // Obter ID do utilizador da sessão
+
         val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
         userId = sharedPreferences.getInt("id_user", -1).toString()
 
-        // Configurar RecyclerView
+
         zonesRecyclerView = findViewById(R.id.zones_recycler_view)
         zonesRecyclerView.layoutManager = LinearLayoutManager(this)
         zonesAdapter = ZonesAdapter(
@@ -61,7 +61,7 @@ class ZonesActivity : AppCompatActivity() {
         )
         zonesRecyclerView.adapter = zonesAdapter
 
-        // Configurar FAB
+
         fabAddZone = findViewById(R.id.fab_add_zone)
         fabAddZone.setOnClickListener {
             val intent = Intent(this, MapsActivity::class.java)
@@ -69,7 +69,6 @@ class ZonesActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Configurar padding da barra de navegação para barras do sistema
         val navBarBottom = findViewById<LinearLayout>(R.id.navBarBottom)
         ViewCompat.setOnApplyWindowInsetsListener(navBarBottom) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -78,10 +77,8 @@ class ZonesActivity : AppCompatActivity() {
             insets
         }
 
-        // Configurar navegação
         setupNavigation()
 
-        // Carregar zonas
         fetchZones()
     }
 
@@ -147,7 +144,6 @@ class ZonesActivity : AppCompatActivity() {
                         zonesList.add(Zone(id, name, adminId, areaUserId, coordinates, isActive))
                     }
                 }
-                // Ordenar: zonas ativas primeiro, desativadas no fundo
                 zonesList.sortBy { !it.isActive }
                 zonesAdapter.notifyDataSetChanged()
 
@@ -179,7 +175,6 @@ class ZonesActivity : AppCompatActivity() {
         val popup = PopupMenu(this, anchorView)
         popup.menuInflater.inflate(R.menu.menu_zone_options, popup.menu)
 
-        // Atualizar texto do botão com base no estado atual
         val toggleItem = popup.menu.findItem(R.id.action_toggle)
         toggleItem.title = if (zone.isActive) "Desativar" else "Ativar"
 

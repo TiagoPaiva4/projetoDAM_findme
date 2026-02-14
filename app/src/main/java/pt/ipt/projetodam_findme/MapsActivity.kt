@@ -91,7 +91,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     // Referência do polígono da zona para atualização de cor
     private var zonePolygon: Polygon? = null
 
-    // Rastreamento de localização em tempo real
+    // localização em tempo real
     private var locationCallback: LocationCallback? = null
     private var userMarker: Marker? = null
     private var zonePoints: List<LatLng> = emptyList()
@@ -220,7 +220,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 // Carregar polígono existente para edição
                 loadExistingPolygon(editZone!!)
             } else {
-                // Centrar na localização do utilizador ou, por defeito, em Tomar
+                // Centrar na localização do utilizador
                 val tomar = LatLng(39.60, -8.41)
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tomar, 14f))
             }
@@ -262,7 +262,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         zonePoints = zone.coordinates.map { LatLng(it.latitude, it.longitude) }
 
         // Desenhar o polígono da zona
-        // Cor cinza se a zona estiver desativada, azul caso contrário
         val strokeColor = if (zone.isActive) Color.parseColor("#3A8DDE") else Color.parseColor("#808080")
         val fillColor = if (zone.isActive) Color.parseColor("#403A8DDE") else Color.parseColor("#40808080")
 
@@ -276,7 +275,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             )
         }
 
-        // Rastrear localização apenas se a zona estiver ativa
+        // localização apenas se a zona estiver ativa
         if (zone.isActive) {
             startRealTimeLocationTracking(zone.associatedUserId)
         } else {
@@ -732,7 +731,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         val url = "https://findmyandroid-e0cdh2ehcubgczac.francecentral-01.azurewebsites.net/backend/create_area.php"
         val queue = Volley.newRequestQueue(this)
 
-        // Build coordinates JSON array
+
         val coordsArray = JSONArray()
         for (point in polygonPoints) {
             val obj = JSONObject()
@@ -768,7 +767,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 val statusCode = error.networkResponse?.statusCode
                 val responseBody = error.networkResponse?.data?.let { String(it) }
                 Log.e("MapsActivity", "Error saving zone - Status: $statusCode, Body: $responseBody, Message: ${error.message}")
-                Toast.makeText(this, "Erro: $statusCode - ${responseBody ?: error.message ?: "conexao"}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Erro de ligação. Verifique a sua internet e tente novamente.", Toast.LENGTH_LONG).show()
             }
         ) {
             override fun getBody(): ByteArray {
@@ -822,7 +821,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 val statusCode = error.networkResponse?.statusCode
                 val responseBody = error.networkResponse?.data?.let { String(it) }
                 Log.e("MapsActivity", "Error updating zone - Status: $statusCode, Body: $responseBody, Message: ${error.message}")
-                Toast.makeText(this, "Erro: $statusCode - ${responseBody ?: error.message ?: "conexao"}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Erro de ligação. Verifique a sua internet e tente novamente.", Toast.LENGTH_LONG).show()
             }
         ) {
             override fun getBody(): ByteArray {
@@ -837,20 +836,19 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         queue.add(request)
     }
 
-    // Função para converter o layout XML em Bitmap
+
     private fun getCustomMarkerBitmap(text: String): android.graphics.Bitmap {
         val view = android.view.LayoutInflater.from(this).inflate(R.layout.layout_custom_marker, null)
         val textView = view.findViewById<android.widget.TextView>(R.id.marker_text)
 
-        // Define a letra (ex: primeira letra do nome)
         textView.text = text
 
-        // Obriga a view a desenhar-se para sabermos o tamanho
+
         view.measure(android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED),
             android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED))
         view.layout(0, 0, view.measuredWidth, view.measuredHeight)
 
-        // Cria o bitmap
+
         val bitmap = android.graphics.Bitmap.createBitmap(view.measuredWidth, view.measuredHeight, android.graphics.Bitmap.Config.ARGB_8888)
         val canvas = android.graphics.Canvas(bitmap)
         view.draw(canvas)

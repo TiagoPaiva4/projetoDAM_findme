@@ -32,7 +32,7 @@ class GroupsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_groups)
 
-        // 1. Configurar Padding da Navbar
+
         val navBarBottom = findViewById<LinearLayout>(R.id.navBarBottom)
         ViewCompat.setOnApplyWindowInsetsListener(navBarBottom) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -41,27 +41,22 @@ class GroupsActivity : AppCompatActivity() {
             insets
         }
 
-        // 2. Obter User ID da Sessão
         val sharedPreferences = getSharedPreferences("SessaoUsuario", MODE_PRIVATE)
         userId = sharedPreferences.getInt("id_user", -1).toString()
 
-        // 3. Configurar RecyclerView (Lista)
         recyclerGroups = findViewById(R.id.recyclerGroups)
         recyclerGroups.layoutManager = LinearLayoutManager(this)
         groupsAdapter = GroupsAdapter(groupsList, this)
         recyclerGroups.adapter = groupsAdapter
 
-        // 4. FAB Criar Grupo
         val fabAddGroup = findViewById<FloatingActionButton>(R.id.fab_add_group)
         fabAddGroup.setOnClickListener {
             val intent = Intent(this, CreateGroupActivity::class.java)
             startActivity(intent)
         }
 
-        // 5. Configurar Navbar (Navegação)
         setupNavigation()
 
-        // 6. Carregar Dados
         buscarGrupos()
     }
 

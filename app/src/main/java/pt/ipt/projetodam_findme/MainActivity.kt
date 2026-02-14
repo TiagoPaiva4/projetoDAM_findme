@@ -79,7 +79,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private var currentTab = Tab.PEOPLE
 
-    // UI Elements - ABAS
     private lateinit var tabPessoas: LinearLayout
     private lateinit var tabGrupos: LinearLayout
     private lateinit var tabCirculos: LinearLayout
@@ -106,7 +105,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             val notifIntent = Intent(this, pt.ipt.projetodam_findme.services.NotificationService::class.java)
             notifIntent.putExtra("USER_ID", userId)
             ContextCompat.startForegroundService(this, notifIntent)
-        } catch (e: Exception) { e.printStackTrace() }
+        } catch (e: Exception) { }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
@@ -115,7 +114,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFragment = supportFragmentManager.findFragmentById(R.id.mapMain) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        // verificação de permissão
         checkLocationPermission()
     }
 
@@ -175,17 +173,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         )
         recyclerFriends.adapter = adapter
 
-        // Inicializar NavItems
         tabPessoas = findViewById(R.id.navPessoas)
         tabGrupos = findViewById(R.id.navGrupos)
         tabCirculos = findViewById(R.id.navZona)
         tabEu = findViewById(R.id.navEu)
 
-        // Estado Inicial
         atualizarEstiloAbas(tabPessoas)
         currentTab = Tab.PEOPLE
 
-        // Listeners das Abas
         tabPessoas.setOnClickListener {
             atualizarEstiloAbas(tabPessoas)
             if (currentTab != Tab.PEOPLE) {
@@ -254,27 +249,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return (dp * density).toInt()
     }
 
-    /**
-     * Cria um marcador personalizado com as iniciais do nome do utilizador.
-     *
-     * Processo:
-     * 1. Extrai as iniciais do nome (ex: "João Silva" -> "JS")
-     * 2. Se só tiver um nome, usa as primeiras 2 letras (ex: "Maria" -> "MA")
-     * 3. Infla o layout layout_custom_marker.xml com as iniciais
-     * 4. Converte a View para Bitmap para usar como ícone do marcador
-     *
-     * @param nome Nome completo do utilizador
-     * @return BitmapDescriptor para usar no marcador do Google Maps
-     */
+
     private fun getCustomMarkerBitmap(nome: String): BitmapDescriptor {
         val view = LayoutInflater.from(this).inflate(R.layout.layout_custom_marker, null)
         val textView = view.findViewById<TextView>(R.id.marker_text)
 
-        // Divide o nome em partes (palavras)
         val nomeLimpo = nome.trim()
         val partes = nomeLimpo.split("\\s+".toRegex())
 
-        // Gera as iniciais (2 caracteres)
         val sigla = if (partes.size >= 2) {
             // Se tem 2+ nomes, usa primeira letra de cada
             val letra1 = partes[0].firstOrNull()?.toString() ?: ""
@@ -291,7 +273,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         textView.text = sigla
 
-        // Mede e desenha a View para converter em Bitmap
         val spec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
         view.measure(spec, spec)
         view.layout(0, 0, view.measuredWidth, view.measuredHeight)
@@ -303,7 +284,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return BitmapDescriptorFactory.fromBitmap(bitmap)
     }
 
-    // --- LÓGICA DE PERMISSÕES ATUALIZADA ---
 
     private fun checkLocationPermission() {
         val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -318,7 +298,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (permissionsToRequest.isEmpty()) {
             startLocationUpdates()
         } else {
-            // Se já foi negado anteriormente, podemos mostrar o aviso antes de pedir
             ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), permissionRequestCode)
         }
     }
@@ -331,22 +310,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             val locationPermissionIndex = permissions.indexOf(Manifest.permission.ACCESS_FINE_LOCATION)
 
             if (locationPermissionIndex != -1 && grantResults[locationPermissionIndex] == PackageManager.PERMISSION_GRANTED) {
-                // Sucesso
                 startLocationUpdates()
                 if (::mMap.isInitialized) enableBlueDot()
             } else {
-                // NEGADO: Mostrar Alerta
                 showPermissionDeniedDialog()
             }
         }
     }
 
-    // NOVA FUNÇÃO: Mostra o alerta se o user disser "Não"
     private fun showPermissionDeniedDialog() {
         AlertDialog.Builder(this)
             .setTitle("Permissão de GPS Necessária")
             .setMessage("O FindMe precisa da sua localização para funcionar e mostrar os seus amigos no mapa.\n\nPor favor, ative a permissão nas definições.")
-            .setCancelable(false) // Impede fechar tocando fora
+            .setCancelable(false)
             .setPositiveButton("Ir às Definições") { _, _ ->
                 try {
                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
@@ -354,12 +330,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     intent.data = uri
                     startActivity(intent)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+
                 }
             }
             .setNegativeButton("Sair") { dialog, _ ->
                 dialog.dismiss()
-                finish() // Fecha a app porque sem GPS não funciona
+                finish()
             }
             .show()
     }
@@ -392,7 +368,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             if (::mMap.isInitialized && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 mMap.isMyLocationEnabled = true
             }
-        } catch (e: Exception) { e.printStackTrace() }
+        } catch (e: Exception) { }
     }
 
     private fun startLocationUpdates() {

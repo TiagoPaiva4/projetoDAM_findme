@@ -67,7 +67,6 @@ class FriendsAdapter(
             val view = LayoutInflater.from(parent.context).inflate(R.layout.item_person_modern, parent, false)
             FriendViewHolder(view)
         } else {
-            // Layout do botão de rodapé
             val view = LayoutInflater.from(parent.context).inflate(R.layout.item_add_friend_footer, parent, false)
             FooterViewHolder(view)
         }
@@ -115,7 +114,7 @@ class FriendsAdapter(
             // Cliques
             friendHolder.itemView.setOnClickListener { clickListener(friend) }
 
-            // Remover (apenas se for criador do grupo)
+            // Remover
             val canRemove = removeListener != null && currentUserId == groupCreatorId && friend.id != currentUserId
             if (canRemove) {
                 friendHolder.btnRemove.visibility = View.VISIBLE
@@ -125,7 +124,6 @@ class FriendsAdapter(
             }
 
         } else {
-            // Só entra aqui se addFriendListener != null
             holder.itemView.setOnClickListener {
                 addFriendListener?.invoke()
             }
@@ -136,7 +134,6 @@ class FriendsAdapter(
         return friendsList.size + if (addFriendListener != null) 1 else 0
     }
 
-    // --- FUNÇÕES AUXILIARES ---
 
     private fun obterCidade(context: Context, lat: Double, lon: Double): String {
         if (lat == 0.0 && lon == 0.0) return ""

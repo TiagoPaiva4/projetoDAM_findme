@@ -36,7 +36,6 @@ class AddMemberActivity : AppCompatActivity() {
     private val friendsList = mutableListOf<SimpleFriend>()
     private lateinit var adapter: SelectFriendAdapter
 
-    // Classe de dados simples para amigos
     data class SimpleFriend(val id: Int, val name: String, val email: String)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,7 +87,6 @@ class AddMemberActivity : AppCompatActivity() {
             }
         }
 
-        // Carregar amigos
         fetchFriends()
     }
 
